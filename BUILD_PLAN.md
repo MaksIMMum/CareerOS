@@ -8,7 +8,7 @@ How to use this file:
 
 Demo is **Thursday 19 November**. Rough schedule: steps 1–3 on Saturday (live HTTPS sign-in by Saturday night, so the 3 points for a working prototype are safe early), steps 4–5 Sunday, 6–7 Monday, 8 Tuesday, 9 Wednesday. **Start inviting real users the moment step 5 is deployed**, because the report (4 points) needs people, and people need days.
 
----
+----
 
 ## Before step 1 (humans, ~30 min, done once)
 
