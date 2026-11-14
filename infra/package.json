@@ -2,16 +2,15 @@
   "name": "careeros-infra",
   "version": "0.1.0",
   "private": true,
-  "bin": {
-    "infra": "bin/careeros.js"
-  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "echo \"No infra tests yet\"",
+    "test": "vitest run",
     "cdk": "cdk",
-    "deploy": "cdk deploy"
+    "synth": "cdk synth -c alertEmail=${ALERT_EMAIL:-alerts@example.com}",
+    "deploy": "tsx scripts/deploy.ts",
+    "destroy": "cdk destroy CareerOsStack"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.179.0",
@@ -20,7 +19,10 @@
   "devDependencies": {
     "@types/node": "^22.13.4",
     "aws-cdk": "^2.179.0",
+    "esbuild": "^0.25.12",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
-  }
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.7"
+  },
+  "type": "module"
 }

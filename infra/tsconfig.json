@@ -3,7 +3,9 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "declaration": false,
     "strict": true,
     "noImplicitAny": true,
@@ -19,8 +21,18 @@
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "skipLibCheck": true
   },
-  "include": ["bin/**/*.ts", "lib/**/*.ts"],
-  "exclude": ["node_modules", "cdk.out", "dist"]
+  "include": [
+    "bin/**/*.ts",
+    "lib/**/*.ts",
+    "scripts/**/*.ts",
+    "test/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "cdk.out",
+    "dist"
+  ]
 }
