@@ -115,6 +115,17 @@ describe('CareerOsStack', () => {
     });
   });
 
+  it('protects /me routes with the Cognito JWT authorizer', () => {
+    t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'GET /me',
+      AuthorizationType: 'JWT',
+    });
+    t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'POST /me',
+      AuthorizationType: 'JWT',
+    });
+  });
+
   it('configures handler Lambdas: node22, arm64, 256MB, 29s, TABLE_NAME, 2-week logs', () => {
     t.hasResourceProperties('AWS::Lambda::Function', {
       Runtime: 'nodejs22.x',
