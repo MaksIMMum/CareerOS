@@ -35,13 +35,14 @@ export const LOCAL_DEV_ORIGIN = 'http://localhost:5173';
 interface RouteDef {
   id: string;
   file: string;
-  method: apigw.HttpMethod;
+  methods: apigw.HttpMethod[];
   path: string;
   public?: boolean;
 }
 
 const ROUTES: RouteDef[] = [
-  { id: 'Health', file: 'health.ts', method: apigw.HttpMethod.GET, path: '/health', public: true },
+  { id: 'Health', file: 'health.ts', methods: [apigw.HttpMethod.GET], path: '/health', public: true },
+  { id: 'Me', file: 'me.ts', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], path: '/me' },
 ];
 
 export interface CareerOsStackProps extends cdk.StackProps {
@@ -245,7 +246,7 @@ export class CareerOsStack extends cdk.Stack {
 
       httpApi.addRoutes({
         path: route.path,
-        methods: [route.method],
+        methods: route.methods,
         integration: new integrations.HttpLambdaIntegration(`${route.id}Integration`, fn),
         ...(route.public ? { authorizer: new apigw.HttpNoneAuthorizer() } : {}),
       });
