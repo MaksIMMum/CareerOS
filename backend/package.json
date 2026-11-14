@@ -4,14 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/handlers/health.ts src/handlers/me.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist/handlers --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build": "esbuild src/handlers/health.ts src/handlers/me.ts src/handlers/cvs.ts src/handlers/vacancies.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist/handlers --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1169.0",
-    "@aws-sdk/lib-dynamodb": "^3.1169.0"
+    "@aws-sdk/client-ssm": "^3.1169.0",
+    "@aws-sdk/lib-dynamodb": "^3.1169.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.147",

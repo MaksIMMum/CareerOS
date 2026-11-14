@@ -35,14 +35,27 @@ export const LOCAL_DEV_ORIGIN = 'http://localhost:5173';
 interface RouteDef {
   id: string;
   file: string;
-  methods: apigw.HttpMethod[];
-  path: string;
+  routes: { path: string; methods: apigw.HttpMethod[] }[];
   public?: boolean;
 }
 
+const { GET, POST, PUT, DELETE } = apigw.HttpMethod;
+
+/** REST resource served by one Lambda: GET+POST /x and GET+PUT+DELETE /x/{id}. */
+const crud = (id: string, file: string, path: string): RouteDef => ({
+  id,
+  file,
+  routes: [
+    { path, methods: [GET, POST] },
+    { path: `${path}/{id}`, methods: [GET, PUT, DELETE] },
+  ],
+});
+
 const ROUTES: RouteDef[] = [
-  { id: 'Health', file: 'health.ts', methods: [apigw.HttpMethod.GET], path: '/health', public: true },
-  { id: 'Me', file: 'me.ts', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], path: '/me' },
+  { id: 'Health', file: 'health.ts', routes: [{ path: '/health', methods: [GET] }], public: true },
+  { id: 'Me', file: 'me.ts', routes: [{ path: '/me', methods: [GET, POST] }] },
+  crud('Cvs', 'cvs.ts', '/cvs'),
+  crud('Vacancies', 'vacancies.ts', '/vacancies'),
 ];
 
 export interface CareerOsStackProps extends cdk.StackProps {
@@ -107,6 +120,8 @@ export class CareerOsStack extends cdk.Stack {
       readCapacity: 5,
       writeCapacity: 5,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: false },
+      // Items with a `ttl` epoch (e.g. QUOTA#<day>) are deleted automatically (free).
+      timeToLiveAttribute: 'ttl',
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
     table.addGlobalSecondaryIndex({
@@ -243,13 +258,24 @@ export class CareerOsStack extends cdk.Stack {
           resources: [geminiParamArn],
         }),
       );
+      // Decrypt the SecureString (AWS-managed aws/ssm key), only when called through SSM.
+      fn.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ['kms:Decrypt'],
+          resources: ['*'],
+          conditions: { StringEquals: { 'kms:ViaService': `ssm.${this.region}.amazonaws.com` } },
+        }),
+      );
 
-      httpApi.addRoutes({
-        path: route.path,
-        methods: route.methods,
-        integration: new integrations.HttpLambdaIntegration(`${route.id}Integration`, fn),
-        ...(route.public ? { authorizer: new apigw.HttpNoneAuthorizer() } : {}),
-      });
+      const integration = new integrations.HttpLambdaIntegration(`${route.id}Integration`, fn);
+      for (const r of route.routes) {
+        httpApi.addRoutes({
+          path: r.path,
+          methods: r.methods,
+          integration,
+          ...(route.public ? { authorizer: new apigw.HttpNoneAuthorizer() } : {}),
+        });
+      }
     }
 
     // ----------------------------------------------------------- Budget

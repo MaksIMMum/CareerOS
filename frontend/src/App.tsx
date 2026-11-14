@@ -8,6 +8,7 @@ import { ConfirmCodePage } from './pages/ConfirmCodePage.js';
 import { SignInPage } from './pages/SignInPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
+import { CvsPage } from './pages/CvsPage.js';
 
 export function App() {
   return (
@@ -22,10 +23,27 @@ export function App() {
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route
-              path="/app/*"
+              path="/app"
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/cvs"
+              element={
+                <ProtectedRoute>
+                  <CvsPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Any other /app/* path still requires a session, then lands on the dashboard */}
+            <Route
+              path="/app/*"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/app" replace />
                 </ProtectedRoute>
               }
             />
