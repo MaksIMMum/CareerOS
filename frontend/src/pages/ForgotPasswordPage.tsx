@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
+import { authErrorKey } from '../lib/authErrors.js';
 
 export const ForgotPasswordPage: React.FC = () => {
   const { t } = useTranslation();
@@ -21,7 +22,7 @@ export const ForgotPasswordPage: React.FC = () => {
     setError(null);
 
     if (!isConfigured) {
-      setError('AWS Cognito is not configured.');
+      setError(t('auth.errors.notConfigured'));
       return;
     }
 
@@ -31,11 +32,7 @@ export const ForgotPasswordPage: React.FC = () => {
       setStep('confirm');
     } catch (err: any) {
       console.error('Reset request error', err);
-      if (err.name === 'UserNotFoundException') {
-        setError(t('auth.errors.userNotFound'));
-      } else {
-        setError(err.message || t('auth.errors.general'));
-      }
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
@@ -57,14 +54,10 @@ export const ForgotPasswordPage: React.FC = () => {
         confirmationCode: code.trim(),
         newPassword,
       });
-      navigate(`/signin?confirmed=true&email=${encodeURIComponent(email.trim())}`);
+      navigate(`/signin?reset=true&email=${encodeURIComponent(email.trim())}`);
     } catch (err: any) {
       console.error('Confirm reset error', err);
-      if (err.name === 'CodeMismatchException') {
-        setError(t('auth.errors.codeMismatch'));
-      } else {
-        setError(err.message || t('auth.errors.general'));
-      }
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }

@@ -9,14 +9,47 @@ export interface UserProfile {
   sub: string;
   email: string;
   createdAt: string;
+  /** Answer to "Where did you hear about CareerOS?" (one of SOURCE_OPTIONS or 'unknown'). */
   source: string;
+  /** Value of the ?src= URL parameter the user arrived with, if any (e.g. 'poster'). */
+  src?: string;
   lang: string;
 }
 
-const headers = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-};
+/** Allowed answers for the sign-up "Where did you hear about CareerOS?" field. */
+export const SOURCE_OPTIONS = [
+  'university_chat',
+  'poster',
+  'dou',
+  'telegram',
+  'linkedin',
+  'friend',
+  'other',
+] as const;
+
+// CORS headers are added by API Gateway (allowed origins are configured in infra/).
+const headers = { 'Content-Type': 'application/json' };
+
+export function normalizeSource(value: unknown): string {
+  return typeof value === 'string' && (SOURCE_OPTIONS as readonly string[]).includes(value)
+    ? value
+    : 'unknown';
+}
+
+/** Keeps campaign tags like "poster" or "tg-kpi_2026": lowercase [a-z0-9_-], max 64 chars. */
+export function normalizeSrc(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const cleaned = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, 64);
+  return cleaned || undefined;
+}
+
+function isConditionalCheckFailed(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === 'ConditionalCheckFailedException';
+}
 
 export async function handleMeRequest(
   event: APIGatewayProxyEventV2,
@@ -63,7 +96,7 @@ export async function handleMeRequest(
   }
 
   if (method === 'POST') {
-    let body: { source?: string; lang?: string } = {};
+    let body: { source?: unknown; src?: unknown; lang?: unknown } = {};
     if (event.body) {
       try {
         body = JSON.parse(event.body);
@@ -95,22 +128,39 @@ export async function handleMeRequest(
       sub,
       email,
       createdAt: now,
-      source: body.source?.trim() || 'unknown',
+      source: normalizeSource(body.source),
       lang: body.lang === 'en' ? 'en' : 'uk',
     };
+    const src = normalizeSrc(body.src);
+    if (src) newProfile.src = src;
 
-    await client.send(
-      new PutCommand({
-        TableName: tableName,
-        Item: newProfile,
-      }),
-    );
+    try {
+      // Conditional write: if two requests race (double tap, two tabs), only one creates the
+      // profile, so exactly one SIGNUP event is logged per user.
+      await client.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: newProfile,
+          ConditionExpression: 'attribute_not_exists(PK)',
+        }),
+      );
+    } catch (err) {
+      if (!isConditionalCheckFailed(err)) throw err;
+      const winner = await client.send(
+        new GetCommand({ TableName: tableName, Key: { PK: profilePK, SK: profileSK } }),
+      );
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ profile: winner.Item }),
+      };
+    }
 
     // Log SIGNUP event
     await logEvent(
       sub,
       'SIGNUP',
-      { email, source: newProfile.source, lang: newProfile.lang },
+      { email, source: newProfile.source, lang: newProfile.lang, ...(src ? { src } : {}) },
       client,
       tableName,
     );

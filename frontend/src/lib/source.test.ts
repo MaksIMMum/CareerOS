@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { captureSourceParam, getStoredSource, clearStoredSource } from './source.js';
+import {
+  captureSourceParam,
+  getStoredSource,
+  clearStoredSource,
+  setSourceAnswer,
+  getSourceAnswer,
+} from './source.js';
 
 describe('source tracking', () => {
   let storage: Record<string, string> = {};
@@ -46,5 +52,38 @@ describe('source tracking', () => {
     expect(getStoredSource()).toBe('telegram');
     clearStoredSource();
     expect(getStoredSource()).toBeNull();
+  });
+
+  it('keeps the ?src= value and the sign-up answer separately', () => {
+    vi.stubGlobal('window', { location: { search: '?src=poster' } });
+    captureSourceParam();
+    setSourceAnswer('telegram');
+
+    expect(getStoredSource()).toBe('poster');
+    expect(getSourceAnswer()).toBe('telegram');
+  });
+
+  it('clears both values after they were sent', () => {
+    storage['careeros_src'] = 'poster';
+    setSourceAnswer('dou');
+    clearStoredSource();
+    expect(getStoredSource()).toBeNull();
+    expect(getSourceAnswer()).toBeNull();
+  });
+
+  it('does not throw when localStorage is unavailable', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+      removeItem: () => {
+        throw new Error('blocked');
+      },
+    });
+    expect(() => setSourceAnswer('dou')).not.toThrow();
+    expect(getSourceAnswer()).toBeNull();
   });
 });

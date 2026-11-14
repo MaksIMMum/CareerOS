@@ -78,6 +78,7 @@ export const resources = {
         newPasswordLabel: 'Новий пароль',
         resetPasswordBtn: 'Встановити новий пароль',
         resetSuccess: 'Пароль успішно змінено. Тепер ви можете увійти.',
+        confirmedNotice: 'Пошту підтверджено! Тепер увійдіть у свій акаунт.',
         errors: {
           userNotFound: 'Користувача з такою поштою не знайдено.',
           incorrectPassword: 'Неправильний пароль або пошта.',
@@ -86,6 +87,11 @@ export const resources = {
           consentRequired: 'Будь ласка, підтвердіть згоду на обробку тексту резюме.',
           passwordLength: 'Пароль має містити не менше 8 символів.',
           general: 'Виникла помилка під час автентифікації. Спробуйте пізніше.',
+          expiredCode: 'Термін дії коду минув. Надішліть новий код.',
+          limitExceeded: 'Забагато спроб. Зачекайте кілька хвилин і спробуйте знову.',
+          codeDelivery: 'Не вдалося надіслати лист із кодом. Перевірте адресу пошти.',
+          network: 'Немає з\'єднання з мережею. Перевірте інтернет і спробуйте знову.',
+          notConfigured: 'Сервіс входу ще не налаштовано. Спробуйте пізніше.',
         },
       },
       dashboard: {
@@ -183,6 +189,7 @@ export const resources = {
         newPasswordLabel: 'New password',
         resetPasswordBtn: 'Set new password',
         resetSuccess: 'Password changed successfully. You can now sign in.',
+        confirmedNotice: 'Email confirmed! Now sign in to your account.',
         errors: {
           userNotFound: 'User not found with this email.',
           incorrectPassword: 'Incorrect username or password.',
@@ -191,6 +198,11 @@ export const resources = {
           consentRequired: 'Please accept the consent to process CV text.',
           passwordLength: 'Password must be at least 8 characters long.',
           general: 'An authentication error occurred. Please try again.',
+          expiredCode: 'This code has expired. Please request a new one.',
+          limitExceeded: 'Too many attempts. Please wait a few minutes and try again.',
+          codeDelivery: 'We could not send the code e-mail. Please check the address.',
+          network: 'No network connection. Check your internet and try again.',
+          notConfigured: 'Sign-in is not configured yet. Please try again later.',
         },
       },
       dashboard: {
@@ -221,8 +233,15 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
+    // Ukrainian by default; a language picked with the header switch is remembered in
+    // localStorage (or forced with ?lang=en). Browser language is deliberately ignored.
     fallbackLng: 'uk',
-    lng: 'uk',
+    supportedLngs: ['uk', 'en'],
+    detection: {
+      order: ['querystring', 'localStorage'],
+      lookupQuerystring: 'lang',
+      caches: ['localStorage'],
+    },
     interpolation: {
       escapeValue: false,
     },

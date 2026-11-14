@@ -2,6 +2,16 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function getAuthHeader(): Promise<Record<string, string>> {
   try {
     const session = await fetchAuthSession();
@@ -41,7 +51,7 @@ export async function apiRequest<T = unknown>(
     } catch {
       // Ignore JSON parse error on non-JSON response
     }
-    throw new Error(errorMsg);
+    throw new ApiError(errorMsg, res.status);
   }
 
   return (await res.json()) as T;
@@ -54,6 +64,7 @@ export interface UserProfile {
   email: string;
   createdAt: string;
   source: string;
+  src?: string;
   lang: string;
 }
 
@@ -61,7 +72,7 @@ export async function fetchMe(): Promise<{ profile: UserProfile }> {
   return apiRequest<{ profile: UserProfile }>('/me');
 }
 
-export async function syncMe(data: { source?: string; lang?: string }): Promise<{ profile: UserProfile }> {
+export async function syncMe(data: { source?: string; src?: string; lang?: string }): Promise<{ profile: UserProfile }> {
   return apiRequest<{ profile: UserProfile }>('/me', {
     method: 'POST',
     body: JSON.stringify(data),
