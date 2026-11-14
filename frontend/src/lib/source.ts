@@ -1,29 +1,49 @@
+// Where a user came from, kept in localStorage until their first sign-in:
+//  - SRC: the ?src= URL parameter (campaign tag, e.g. ?src=poster from a QR code)
+//  - ANSWER: the optional sign-up answer to "Where did you hear about CareerOS?"
+// Both are sent to POST /me after the first sign-in and then cleared.
 const SRC_STORAGE_KEY = 'careeros_src';
+const ANSWER_STORAGE_KEY = 'careeros_source_answer';
 
-export function captureSourceParam(): void {
+function read(key: string): string | null {
   try {
-    const params = new URLSearchParams(window.location.search);
-    const src = params.get('src');
-    if (src) {
-      localStorage.setItem(SRC_STORAGE_KEY, src.trim());
-    }
-  } catch {
-    // Ignore environments where localStorage is unavailable
-  }
-}
-
-export function getStoredSource(): string | null {
-  try {
-    return localStorage.getItem(SRC_STORAGE_KEY);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-export function clearStoredSource(): void {
+function write(key: string, value: string | null): void {
   try {
-    localStorage.removeItem(SRC_STORAGE_KEY);
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // Ignore environments where localStorage is unavailable (private mode, blocked storage)
+  }
+}
+
+export function captureSourceParam(): void {
+  try {
+    const src = new URLSearchParams(window.location.search).get('src')?.trim();
+    if (src) write(SRC_STORAGE_KEY, src.slice(0, 64));
   } catch {
     // Ignore
   }
+}
+
+export function getStoredSource(): string | null {
+  return read(SRC_STORAGE_KEY);
+}
+
+export function setSourceAnswer(answer: string): void {
+  write(ANSWER_STORAGE_KEY, answer || null);
+}
+
+export function getSourceAnswer(): string | null {
+  return read(ANSWER_STORAGE_KEY);
+}
+
+export function clearStoredSource(): void {
+  write(SRC_STORAGE_KEY, null);
+  write(ANSWER_STORAGE_KEY, null);
 }

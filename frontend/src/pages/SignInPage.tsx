@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { signIn } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
+import { authErrorKey } from '../lib/authErrors.js';
 
 export const SignInPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { isConfigured, onPostLogin } = useAuth();
+  const { isConfigured, onPostLogin, user, isLoading } = useAuth();
 
   const [email, setEmail] = useState(searchParams.get('email') || '');
   const [password, setPassword] = useState('');
@@ -17,13 +18,21 @@ export const SignInPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const isConfirmed = searchParams.get('confirmed') === 'true';
+  const isReset = searchParams.get('reset') === 'true';
+  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/app';
+
+  const finishSignIn = async () => {
+    // Synchronize user profile in DynamoDB (creates it + logs SIGNUP on the first sign-in)
+    await onPostLogin();
+    navigate(from, { replace: true });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!isConfigured) {
-      setError('AWS Cognito is not configured.');
+      setError(t('auth.errors.notConfigured'));
       return;
     }
 
@@ -35,29 +44,33 @@ export const SignInPage: React.FC = () => {
       });
 
       if (res.isSignedIn) {
-        // Synchronize user profile in DynamoDB and log SIGNUP / session
-        await onPostLogin();
-
-        const from = (location.state as any)?.from?.pathname || '/app';
-        navigate(from, { replace: true });
+        await finishSignIn();
       } else if (res.nextStep.signInStep === 'CONFIRM_SIGN_UP') {
         navigate(`/confirm?email=${encodeURIComponent(email.trim())}`);
       } else {
-        setError(`Unexpected authentication step: ${res.nextStep.signInStep}`);
+        console.error('Unsupported sign-in step', res.nextStep.signInStep);
+        setError(t('auth.errors.general'));
       }
     } catch (err: any) {
       console.error('Sign in error', err);
-      if (err.name === 'UserNotFoundException' || err.name === 'NotAuthorizedException') {
+      if (err.name === 'UserAlreadyAuthenticatedException') {
+        // A session already exists in this browser (e.g. another tab): just continue.
+        await finishSignIn();
+      } else if (err.name === 'UserNotFoundException' || err.name === 'NotAuthorizedException') {
         setError(t('auth.errors.incorrectPassword'));
       } else if (err.name === 'UserNotConfirmedException') {
         navigate(`/confirm?email=${encodeURIComponent(email.trim())}`);
       } else {
-        setError(err.message || t('auth.errors.general'));
+        setError(t(authErrorKey(err)));
       }
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isLoading && user) {
+    return <Navigate to={from} replace />;
+  }
 
   return (
     <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
@@ -74,9 +87,9 @@ export const SignInPage: React.FC = () => {
           </p>
         </div>
 
-        {isConfirmed && (
+        {(isConfirmed || isReset) && (
           <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg">
-            {t('auth.confirmDesc')}
+            {isReset ? t('auth.resetSuccess') : t('auth.confirmedNotice')}
           </div>
         )}
 

@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getCurrentUser, signOut as amplifySignOut, type AuthUser } from 'aws-amplify/auth';
-import { fetchMe, syncMe, type UserProfile } from '../lib/api.js';
-import { captureSourceParam, getStoredSource } from '../lib/source.js';
+import { ApiError, fetchMe, syncMe, type UserProfile } from '../lib/api.js';
+import {
+  captureSourceParam,
+  clearStoredSource,
+  getSourceAnswer,
+  getStoredSource,
+} from '../lib/source.js';
 import { isAuthConfigured } from '../lib/auth.js';
 import i18n from '../i18n.js';
 
@@ -12,7 +17,7 @@ interface AuthContextType {
   isConfigured: boolean;
   refreshUser: () => Promise<void>;
   signOut: () => Promise<void>;
-  onPostLogin: (selectedSource?: string) => Promise<void>;
+  onPostLogin: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,6 +31,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     captureSourceParam();
   }, []);
+
+  // Creates the profile on the first call (POST /me is idempotent), sending the ?src= tag and
+  // the sign-up answer stored in this browser; clears them once the backend has the profile.
+  const createOrLoadProfile = async (): Promise<UserProfile> => {
+    const res = await syncMe({
+      source: getSourceAnswer() ?? undefined,
+      src: getStoredSource() ?? undefined,
+      lang: i18n.language === 'en' ? 'en' : 'uk',
+    });
+    clearStoredSource();
+    return res.profile;
+  };
 
   const refreshUser = async () => {
     if (!isAuthConfigured) {
@@ -42,8 +59,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { profile: userProfile } = await fetchMe();
         setProfile(userProfile);
-      } catch {
-        // Profile not created yet or network error
+      } catch (err) {
+        // Signed in, but the profile was never created (e.g. POST /me failed after sign-in).
+        if (err instanceof ApiError && err.status === 404) {
+          try {
+            setProfile(await createOrLoadProfile());
+          } catch (syncErr) {
+            console.error('Failed to create profile', syncErr);
+          }
+        }
       }
     } catch {
       setUser(null);
@@ -57,16 +81,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUser();
   }, []);
 
-  const onPostLogin = async (selectedSource?: string) => {
-    const storedSource = getStoredSource();
-    const source = selectedSource || storedSource || 'direct';
-    const lang = i18n.language === 'en' ? 'en' : 'uk';
-
+  const onPostLogin = async () => {
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-      const res = await syncMe({ source, lang });
-      setProfile(res.profile);
+      setProfile(await createOrLoadProfile());
     } catch (err) {
       console.error('Failed to sync profile after login', err);
     }

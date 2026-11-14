@@ -78,4 +78,92 @@ describe('me handler', () => {
     // Verified 3 DynamoDB calls: GetCommand, PutCommand for Profile, PutCommand for Event
     expect(mockSend).toHaveBeenCalledTimes(3);
   });
+
+  const postEvent = (body: unknown) =>
+    ({
+      requestContext: { ...authorizedContext(), http: { method: 'POST' } },
+      body: JSON.stringify(body),
+    }) as unknown as APIGatewayProxyEventV2;
+
+  it('POST /me stores the ?src= value next to the source answer and logs it', async () => {
+    const puts: any[] = [];
+    const mockSend = vi.fn().mockImplementation((cmd: any) => {
+      if (cmd.input?.Key) return Promise.resolve({ Item: undefined });
+      puts.push(cmd.input);
+      return Promise.resolve({});
+    });
+
+    const res = (await handleMeRequest(
+      postEvent({ source: 'telegram', src: ' Poster ', lang: 'en' }),
+      { send: mockSend } as any,
+      'test-table',
+    )) as any;
+
+    expect(res.statusCode).toBe(201);
+    const [profilePut, eventPut] = puts;
+    expect(profilePut.Item).toEqual(
+      expect.objectContaining({ source: 'telegram', src: 'poster', lang: 'en' }),
+    );
+    expect(profilePut.ConditionExpression).toBe('attribute_not_exists(PK)');
+    expect(eventPut.Item.type).toBe('SIGNUP');
+    expect(eventPut.Item.payload).toEqual(
+      expect.objectContaining({ source: 'telegram', src: 'poster' }),
+    );
+  });
+
+  it('POST /me rejects unknown source answers and junk src values', async () => {
+    const puts: any[] = [];
+    const mockSend = vi.fn().mockImplementation((cmd: any) => {
+      if (cmd.input?.Key) return Promise.resolve({ Item: undefined });
+      puts.push(cmd.input);
+      return Promise.resolve({});
+    });
+
+    await handleMeRequest(
+      postEvent({ source: '<script>', src: '!!!' }),
+      { send: mockSend } as any,
+      'test-table',
+    );
+
+    expect(puts[0].Item.source).toBe('unknown');
+    expect(puts[0].Item).not.toHaveProperty('src');
+    expect(puts[0].Item.lang).toBe('uk');
+  });
+
+  it('POST /me logs no second SIGNUP when a concurrent request created the profile first', async () => {
+    const existing = { PK: 'USER#sub-456', SK: 'PROFILE', email: 'test@example.com' };
+    let gets = 0;
+    const mockSend = vi.fn().mockImplementation((cmd: any) => {
+      if (cmd.input?.Key) {
+        gets += 1;
+        // first GET: not there yet; GET after the failed conditional put: the winner's item
+        return Promise.resolve({ Item: gets === 1 ? undefined : existing });
+      }
+      const err = new Error('The conditional request failed');
+      err.name = 'ConditionalCheckFailedException';
+      return Promise.reject(err);
+    });
+
+    const res = (await handleMeRequest(
+      postEvent({ source: 'dou' }),
+      { send: mockSend } as any,
+      'test-table',
+    )) as any;
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ profile: existing });
+    // GET, failed conditional PUT, GET — and no event PUT
+    expect(mockSend).toHaveBeenCalledTimes(3);
+  });
+
+  it('POST /me rethrows unexpected DynamoDB errors', async () => {
+    const mockSend = vi.fn().mockImplementation((cmd: any) => {
+      if (cmd.input?.Key) return Promise.resolve({ Item: undefined });
+      return Promise.reject(new Error('ProvisionedThroughputExceededException'));
+    });
+
+    await expect(
+      handleMeRequest(postEvent({}), { send: mockSend } as any, 'test-table'),
+    ).rejects.toThrow('ProvisionedThroughputExceededException');
+  });
 });

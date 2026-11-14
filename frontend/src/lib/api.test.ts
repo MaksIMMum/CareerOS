@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { apiRequest } from './api.js';
+import { ApiError, apiRequest } from './api.js';
 
 describe('apiRequest helper', () => {
   beforeEach(() => {
@@ -33,6 +33,9 @@ describe('apiRequest helper', () => {
       json: vi.fn().mockResolvedValue({ error: 'User profile not found' }),
     });
 
-    await expect(apiRequest('/me')).rejects.toThrow('User profile not found');
+    const err = await apiRequest('/me').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).message).toBe('User profile not found');
+    expect((err as ApiError).status).toBe(404);
   });
 });

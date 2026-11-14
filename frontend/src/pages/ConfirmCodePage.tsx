@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { confirmSignUp, resendSignUpCode } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
+import { authErrorKey } from '../lib/authErrors.js';
 
 export const ConfirmCodePage: React.FC = () => {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export const ConfirmCodePage: React.FC = () => {
     setSuccessMsg(null);
 
     if (!isConfigured) {
-      setError('AWS Cognito is not configured.');
+      setError(t('auth.errors.notConfigured'));
       return;
     }
 
@@ -36,11 +37,7 @@ export const ConfirmCodePage: React.FC = () => {
       navigate(`/signin?confirmed=true&email=${encodeURIComponent(email.trim())}`);
     } catch (err: any) {
       console.error('Confirm code error', err);
-      if (err.name === 'CodeMismatchException') {
-        setError(t('auth.errors.codeMismatch'));
-      } else {
-        setError(err.message || t('auth.errors.general'));
-      }
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
@@ -61,7 +58,7 @@ export const ConfirmCodePage: React.FC = () => {
       setSuccessMsg(t('auth.resendSuccess'));
     } catch (err: any) {
       console.error('Resend error', err);
-      setError(err.message || t('auth.errors.general'));
+      setError(t(authErrorKey(err)));
     } finally {
       setResending(false);
     }

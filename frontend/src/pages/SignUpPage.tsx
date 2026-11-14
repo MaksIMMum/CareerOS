@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { signUp } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
-import { getStoredSource } from '../lib/source.js';
+import { setSourceAnswer } from '../lib/source.js';
+import { authErrorKey } from '../lib/authErrors.js';
 
 export const SignUpPage: React.FC = () => {
   const { t } = useTranslation();
@@ -13,7 +14,7 @@ export const SignUpPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [consent, setConsent] = useState(false);
-  const [source, setSource] = useState(getStoredSource() || '');
+  const [source, setSource] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +33,7 @@ export const SignUpPage: React.FC = () => {
     }
 
     if (!isConfigured) {
-      setError('AWS Cognito is not configured. Please deploy the stack or check .env.production.');
+      setError(t('auth.errors.notConfigured'));
       return;
     }
 
@@ -48,23 +49,13 @@ export const SignUpPage: React.FC = () => {
         },
       });
 
-      // Save selected source temporarily for post-login sync
-      if (source) {
-        try {
-          localStorage.setItem('careeros_src', source);
-        } catch {
-          // ignore
-        }
-      }
+      // Kept until the first sign-in, then sent to POST /me together with the ?src= tag.
+      setSourceAnswer(source);
 
       navigate(`/confirm?email=${encodeURIComponent(email.trim())}`);
     } catch (err: any) {
       console.error('Sign up error', err);
-      if (err.name === 'UsernameExistsException') {
-        setError(t('auth.errors.userExists'));
-      } else {
-        setError(err.message || t('auth.errors.general'));
-      }
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
