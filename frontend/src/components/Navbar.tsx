@@ -21,18 +21,18 @@ export const Navbar: React.FC = () => {
   return (
     <header className="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-20">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center space-x-2">
-          <span className="text-2xl font-bold tracking-tight text-blue-600">CareerOS</span>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+        <Link to={user ? '/app' : '/'} className="flex items-center space-x-2 shrink-0">
+          <span className="text-xl sm:text-2xl font-bold tracking-tight text-blue-600">CareerOS</span>
+          <span className="hidden sm:inline text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
             v0.2
           </span>
         </Link>
 
-        <div className="flex items-center space-x-3 sm:space-x-4">
+        <div className="flex items-center space-x-2.5 sm:space-x-4">
           <button
             onClick={toggleLanguage}
             className="px-2.5 py-1 text-xs sm:text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-            title="Toggle language"
+            title={t('nav.toggleLanguage')}
           >
             🌐 {i18n.language === 'uk' ? 'EN' : 'UA'}
           </button>
@@ -41,9 +41,15 @@ export const Navbar: React.FC = () => {
             <>
               <Link
                 to="/app"
-                className="text-xs sm:text-sm font-medium text-slate-700 hover:text-blue-600"
+                className="hidden sm:inline text-xs sm:text-sm font-medium text-slate-700 hover:text-blue-600"
               >
                 {t('nav.dashboard')}
+              </Link>
+              <Link
+                to="/app/cvs"
+                className="text-xs sm:text-sm font-medium text-slate-700 hover:text-blue-600 whitespace-nowrap"
+              >
+                {t('nav.cvs')}
               </Link>
               <span className="hidden md:inline-block text-xs text-slate-400">|</span>
               <span className="hidden md:inline-block text-xs text-slate-600 truncate max-w-[150px]">

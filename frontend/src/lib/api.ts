@@ -1,4 +1,5 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
+import i18n from '../i18n.js';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -6,6 +7,10 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    /** Machine-readable code from the backend, e.g. 'validation_error', 'quota_exceeded'. */
+    public readonly code?: string,
+    /** The whole error body (e.g. { kind, limit } for quota errors). */
+    public readonly body?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -36,6 +41,8 @@ export async function apiRequest<T = unknown>(
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      // Lets the backend answer user-facing messages (e.g. quota errors) in the UI language.
+      'Accept-Language': i18n.language === 'en' ? 'en' : 'uk',
       ...authHeaders,
       ...options.headers,
     },
@@ -43,17 +50,19 @@ export async function apiRequest<T = unknown>(
 
   if (!res.ok) {
     let errorMsg = `HTTP Error ${res.status}`;
+    let errJson: Record<string, unknown> | undefined;
     try {
-      const errJson = await res.json();
-      if (errJson.error) {
+      errJson = await res.json();
+      if (typeof errJson?.error === 'string') {
         errorMsg = errJson.error;
       }
     } catch {
       // Ignore JSON parse error on non-JSON response
     }
-    throw new ApiError(errorMsg, res.status);
+    throw new ApiError(errorMsg, res.status, errJson?.error as string | undefined, errJson);
   }
 
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
@@ -78,3 +87,64 @@ export async function syncMe(data: { source?: string; src?: string; lang?: strin
     body: JSON.stringify(data),
   });
 }
+
+// ------------------------------------------------------------------ CVs
+
+export interface CvSummary {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Cv extends CvSummary {
+  text: string;
+}
+
+export interface CvInput {
+  name: string;
+  text: string;
+}
+
+export const listCvs = () => apiRequest<{ items: CvSummary[] }>('/cvs').then((r) => r.items);
+export const getCv = (id: string) => apiRequest<{ item: Cv }>(`/cvs/${id}`).then((r) => r.item);
+export const createCv = (data: CvInput) =>
+  apiRequest<{ item: Cv }>('/cvs', { method: 'POST', body: JSON.stringify(data) }).then((r) => r.item);
+export const updateCv = (id: string, data: CvInput) =>
+  apiRequest<{ item: Cv }>(`/cvs/${id}`, { method: 'PUT', body: JSON.stringify(data) }).then(
+    (r) => r.item,
+  );
+export const deleteCv = (id: string) => apiRequest<void>(`/cvs/${id}`, { method: 'DELETE' });
+
+// ------------------------------------------------------------------ Vacancies
+
+export interface VacancySummary {
+  id: string;
+  title: string;
+  company: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vacancy extends VacancySummary {
+  text: string;
+}
+
+export type VacancyInput = Pick<Vacancy, 'title' | 'company' | 'url' | 'text'>;
+
+export const listVacancies = () =>
+  apiRequest<{ items: VacancySummary[] }>('/vacancies').then((r) => r.items);
+export const getVacancy = (id: string) =>
+  apiRequest<{ item: Vacancy }>(`/vacancies/${id}`).then((r) => r.item);
+export const createVacancy = (data: VacancyInput) =>
+  apiRequest<{ item: Vacancy }>('/vacancies', { method: 'POST', body: JSON.stringify(data) }).then(
+    (r) => r.item,
+  );
+export const updateVacancy = (id: string, data: VacancyInput) =>
+  apiRequest<{ item: Vacancy }>(`/vacancies/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }).then((r) => r.item);
+export const deleteVacancy = (id: string) =>
+  apiRequest<void>(`/vacancies/${id}`, { method: 'DELETE' });

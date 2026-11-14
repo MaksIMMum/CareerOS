@@ -51,6 +51,49 @@ The AWS deployment is designed for the AWS Free Tier: Cognito, a provisioned
 DynamoDB table, private S3 + CloudFront, API Gateway, ARM64 Lambda, and SSM
 Parameter Store for the Gemini key. Secrets are never committed to the repository.
 
+## Data model
+
+One DynamoDB table, `careeros` (provisioned 5 RCU / 5 WCU), keys `PK`/`SK` plus `GSI1` (`GSI1PK`/`GSI1SK`).
+Everything a user owns lives in their own partition `USER#<sub>` (`sub` = Cognito user id).
+The API builds every key from the caller's JWT, so a user can only ever touch their own items.
+
+| Item | PK | SK | Attributes |
+| --- | --- | --- | --- |
+| Profile | `USER#<sub>` | `PROFILE` | `email`, `createdAt`, `source` (sign-up answer), `src` (`?src=` tag), `lang` |
+| CV version | `USER#<sub>` | `CV#<id>` | `id`, `name` (e.g. "Backend CV"), `text` (≤ 15,000 chars), `createdAt`, `updatedAt` |
+| Vacancy | `USER#<sub>` | `VACANCY#<id>` | `id`, `title`, `company`, `url`, `text` (≤ 10,000 chars), `createdAt`, `updatedAt` |
+| Daily AI quota | `USER#<sub>` | `QUOTA#<yyyy-mm-dd>` | `analyses` (≤ 10/day), `interviews` (≤ 5/day), `ttl` (auto-deleted after 3 days) |
+| Analysis | `USER#<sub>` | `ANALYSIS#<id>` | defined in Step 5 |
+| Mock interview | `USER#<sub>` | `INTERVIEW#<id>` | defined in Step 7 |
+| Application | `USER#<sub>` | `APP#<id>` | defined in Step 6 |
+| Event | `EVENT#<yyyy-mm-dd>` | `<iso time>#<sub>#<type>` | `type` (e.g. `SIGNUP`), `payload`; `GSI1PK=USER#<sub>`, `GSI1SK=<iso time>` |
+
+The quota day follows Kyiv time. Limits per user: 20 CVs, 50 vacancies.
+
+### API
+
+All routes except `/health` require `Authorization: Bearer <Cognito ID token>`; bodies are validated with zod.
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /health` | Public liveness check, `{ "ok": true }` |
+| `GET /me`, `POST /me` | Read / create the profile (first sign-in logs `SIGNUP`) |
+| `GET /cvs`, `POST /cvs` | List CV versions (without text) / create one `{ name, text }` |
+| `GET /cvs/{id}`, `PUT /cvs/{id}`, `DELETE /cvs/{id}` | Read / replace / delete one CV |
+| `GET /vacancies`, `POST /vacancies` | List / create `{ title, company?, url?, text }` |
+| `GET /vacancies/{id}`, `PUT /vacancies/{id}`, `DELETE /vacancies/{id}` | Read / replace / delete one vacancy |
+
+Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`), `unauthorized` (401),
+`not_found` (404), `limit_reached` (409), `payload_too_large` (413), and `quota_exceeded` (429, with `kind`,
+`limit` and a translated `message`).
+
+### AI client
+
+`backend/src/lib/llm.ts` defines `LlmProvider.generateJson(prompt, schema)`. The `GeminiProvider` calls
+`gemini-2.5-flash` over REST in JSON mode, reads the key from SSM once per cold start, retries once on
+429/5xx, validates the answer with zod, and always sends the "do not invent experience or skills" rule as
+the system instruction. `backend/src/lib/quota.ts` takes one unit of the daily quota before every AI call.
+
 ## Repository layout
 
 ```text

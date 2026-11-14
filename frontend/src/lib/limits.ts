@@ -1,0 +1,8 @@
+// Mirrors backend/src/lib/validation.ts LIMITS (the backend enforces them; this is for the UI).
+export const LIMITS = {
+  CV_NAME_MAX: 80,
+  CV_TEXT_MAX: 15_000,
+  VACANCY_TEXT_MAX: 10_000,
+  PDF_MAX_BYTES: 5 * 1024 * 1024,
+  PDF_MAX_PAGES: 20,
+} as const;

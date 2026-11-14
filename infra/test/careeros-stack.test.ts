@@ -126,6 +126,21 @@ describe('CareerOsStack', () => {
     });
   });
 
+  it('protects the CV and vacancy CRUD routes with the JWT authorizer', () => {
+    for (const key of [
+      'GET /cvs', 'POST /cvs', 'GET /cvs/{id}', 'PUT /cvs/{id}', 'DELETE /cvs/{id}',
+      'GET /vacancies', 'POST /vacancies', 'GET /vacancies/{id}', 'PUT /vacancies/{id}', 'DELETE /vacancies/{id}',
+    ]) {
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: key, AuthorizationType: 'JWT' });
+    }
+  });
+
+  it('enables DynamoDB TTL on the ttl attribute (quota items expire)', () => {
+    t.hasResourceProperties('AWS::DynamoDB::Table', {
+      TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },
+    });
+  });
+
   it('configures handler Lambdas: node22, arm64, 256MB, 29s, TABLE_NAME, 2-week logs', () => {
     t.hasResourceProperties('AWS::Lambda::Function', {
       Runtime: 'nodejs22.x',
