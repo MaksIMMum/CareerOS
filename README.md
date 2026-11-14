@@ -1,81 +1,138 @@
+<div align="center">
+
 # CareerOS
 
-CareerOS is an AI-powered career assistant designed for junior IT job seekers in Ukraine. It matches your CV against vacancy postings to provide precision gap analyses and factual rewrites without hallucinating experience, prepares you through tailored text mock interviews, and tracks application outcomes to optimize response rates.
+### A practical AI career assistant for junior IT job seekers in Ukraine
 
-## Repository Structure
+Paste a vacancy, upload your CV, and get a clear match analysis, missing keywords,
+and a factual rewrite that never invents experience. CareerOS also provides tailored
+text interview practice and tracks which CV versions get replies.
+
+[![CI](https://github.com/MaksIMMum/CareerOS/actions/workflows/ci.yml/badge.svg)](https://github.com/MaksIMMum/CareerOS/actions/workflows/ci.yml)
+[![Status](https://img.shields.io/badge/status-prototype-blueviolet.svg)](#project-status)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-2ea44f?logo=node.js&logoColor=white)](#prerequisites)
+[![AWS](https://img.shields.io/badge/AWS-Free%20Tier-ff9900?logo=amazon-aws&logoColor=white)](#architecture)
+
+</div>
+
+> **Project status:** prototype. The landing page and infrastructure foundation are
+> in place; CV analysis, authentication, interviews, and tracking are being built
+> incrementally.
+
+## What CareerOS does
+
+| Capability | Outcome |
+| --- | --- |
+| **CV matching** | Compare a CV with a vacancy and surface the strongest matches and gaps. |
+| **Factual rewriting** | Rephrase and reorder existing CV content without inventing skills or experience. |
+| **Interview practice** | Generate a text mock interview from the vacancy and CV. |
+| **Application tracking** | See which CV version produces replies over time. |
+| **Ukrainian + English** | Switch the interface language with Ukrainian as the default. |
+
+## Architecture
 
 ```text
-careeros/
-├── backend/       # AWS Lambda handlers (Node.js 22, TypeScript, esbuild, vitest)
-├── frontend/      # Single-page web application (React, Vite, TypeScript, Tailwind, i18next)
-├── infra/         # AWS CDK v2 TypeScript infrastructure (Cognito, DynamoDB, S3, CloudFront, API Gateway)
-├── CLAUDE.md      # Project conventions, rules, and technology stack definitions
-├── BUILD_PLAN.md  # Step-by-step roadmap and deployment plan
-└── package.json   # Root workspace manager
+Browser
+  ├─ React + Vite + TypeScript + Tailwind + i18next
+  └─ PDF text extraction in the browser
+          │
+          ▼
+CloudFront + private S3 ── API Gateway HTTP API ── Cognito JWT
+                                  │
+                                  ▼
+                         Node.js 22 Lambda handlers
+                                  │
+                  ┌───────────────┴───────────────┐
+                  ▼                               ▼
+              DynamoDB                    Google Gemini REST API
+```
+
+The AWS deployment is designed for the AWS Free Tier: Cognito, a provisioned
+DynamoDB table, private S3 + CloudFront, API Gateway, ARM64 Lambda, and SSM
+Parameter Store for the Gemini key. Secrets are never committed to the repository.
+
+## Repository layout
+
+```text
+.
+├── backend/       # Node.js 22 Lambda handlers, TypeScript, esbuild, Vitest
+├── frontend/      # React single-page app, Vite, Tailwind, i18next
+├── infra/         # AWS CDK v2 stack and deployment script
+├── .github/
+│   └── workflows/ # CI and manual AWS deployment workflows
+├── BUILD_PLAN.md  # Product and implementation roadmap
+└── CLAUDE.md      # Project conventions and non-negotiable rules
 ```
 
 ## Prerequisites
 
-- **Node.js**: v22+ (tested with v22/v26) and `npm`
-- **AWS CLI v2**: Configured for your AWS account (`aws configure`, default region `us-east-1`)
-- **AWS CDK**: `npm install -g aws-cdk` (or via `npx cdk`)
-- **Google Gemini API Key**: Stored in AWS SSM Parameter Store as `/careeros/gemini-api-key`
+- Node.js **22+** and npm
+- AWS CLI v2 configured for an AWS account
+- AWS CDK (use `npx cdk`; global installation is optional)
+- A Google Gemini API key
 
-## Run Locally
+## Run locally
 
-1. Install all dependencies across all workspaces:
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+npm run dev
+```
 
-2. Run frontend development server:
-   ```bash
-   npm run dev
-   ```
+The frontend is served at `http://localhost:5173`.
 
-3. Run tests and typechecks across workspaces:
-   ```bash
-   npm test
-   npm run typecheck
-   npm run lint
-   ```
+Run the repository checks:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
 
 ## Deploy to AWS
 
-Everything lives in one CDK stack, `CareerOsStack`, in **us-east-1** (N. Virginia). The region is pinned in `infra/bin/careeros.ts`, so your AWS CLI default region doesn't matter. Set `CAREEROS_REGION` to override it.
+The CDK stack is pinned to `us-east-1` by default. Set `CAREEROS_REGION` only
+when intentionally deploying to another region.
 
-**What gets created:** Cognito User Pool (email sign-in, verification code, `admins` group) + public SPA client · DynamoDB table `careeros` (PK/SK + GSI1, provisioned 5/5) · private S3 bucket + CloudFront (OAC, HTTPS, SPA fallback) · HTTP API with Cognito JWT authorizer (20 rps / burst 40) · one Lambda per backend handler (Node.js 22, ARM64) · 1 USD monthly AWS Budget with e-mail alerts.
+### 1. Bootstrap CDK once
 
-1. **Bootstrap CDK** (once per account and region):
-   ```bash
-   cd infra && npx cdk bootstrap aws://<ACCOUNT_ID>/us-east-1 && cd ..
-   ```
+```bash
+cd infra
+npx cdk bootstrap aws://<ACCOUNT_ID>/us-east-1
+cd ..
+```
 
-2. **Store the Gemini API key** in SSM Parameter Store (free; never commit it):
-   ```bash
-   aws ssm put-parameter \
-     --name /careeros/gemini-api-key \
-     --type SecureString \
-     --value "<YOUR_GEMINI_KEY>" \
-     --region us-east-1
-   ```
-   To change it later, run the same command with `--overwrite`.
+### 2. Store the Gemini key in SSM
 
-3. **Deploy everything** (the e-mail gets the budget alerts):
-   ```bash
-   ALERT_EMAIL=you@example.com npm run deploy
-   # or: npm run deploy -- --alert-email you@example.com
-   ```
-   `npm run deploy` runs `infra/scripts/deploy.ts`, which:
-   1. builds the frontend,
-   2. runs `cdk deploy` and saves the stack outputs to `infra/cdk-outputs.json`,
-   3. writes `frontend/.env.production` (`VITE_API_URL`, `VITE_USER_POOL_ID`, `VITE_USER_POOL_CLIENT_ID`, `VITE_REGION`),
-   4. if that file changed, rebuilds the frontend and deploys again (S3 upload + CloudFront invalidation).
+```bash
+aws ssm put-parameter \
+  --name /careeros/gemini-api-key \
+  --type SecureString \
+  --value "<YOUR_GEMINI_KEY>" \
+  --region us-east-1
+```
 
-   At the end it prints the CloudFront URL and the API URL. Check it with `curl <ApiUrl>/health`, which should return `{"ok":true}`.
-   After the first deploy, **confirm the SNS subscription e-mail** ("AWS Notification - Subscription Confirmation").
+Use `--overwrite` when rotating the key. Never put it in source code, `.env`
+files, or GitHub workflow YAML.
 
-   Useful extras: `npm run synth --workspace=infra` (render the CloudFormation template) and `npx cdk diff` (inside `infra/`).
+### 3. Deploy the stack and frontend
+
+```bash
+ALERT_EMAIL=you@example.com npm run deploy
+```
+
+The deployment script builds the frontend, deploys `CareerOsStack`, writes the
+CloudFormation outputs to `frontend/.env.production`, then rebuilds and deploys
+the frontend again if those values changed. It prints the CloudFront URL and API
+URL when complete.
+
+Useful commands:
+
+```bash
+npm run synth --workspace=infra
+npx cdk diff --app "npx tsx infra/bin/careeros.ts"
+curl "<API_URL>/health"
+```
 
 ### Destroy
 
@@ -83,10 +140,40 @@ Everything lives in one CDK stack, `CareerOsStack`, in **us-east-1** (N. Virgini
 npm run destroy --workspace=infra
 ```
 
-This removes the bucket (and its objects), CloudFront, the API, the Lambdas, the log groups and the budget. To protect user data, the **DynamoDB table `careeros` and the Cognito User Pool are retained**. Delete them by hand if you really want them gone, which you must do for the table before deploying again into the same account:
+The S3 bucket, CloudFront distribution, API, Lambdas, log groups, and budget are
+removed. The DynamoDB table and Cognito User Pool are retained to protect user
+data. Delete them manually only when you are certain the data is no longer needed.
 
-```bash
-aws dynamodb delete-table --table-name careeros --region us-east-1
-aws cognito-idp list-user-pools --max-results 10 --region us-east-1   # find the careeros-users id
-aws cognito-idp delete-user-pool --user-pool-id <ID> --region us-east-1
-```
+## GitHub Actions
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on pushes and pull requests. It installs the
+workspace dependencies and runs lint, type-checking, tests, and builds on Node.js 22.
+
+### Manual deployment
+
+`.github/workflows/deploy.yml` runs only through **Actions → Deploy to AWS →
+Run workflow**. Configure:
+
+1. A repository secret named `AWS_ROLE_ARN` for an AWS IAM role trusted by
+   GitHub's OIDC provider.
+2. CDK bootstrap and the `/careeros/gemini-api-key` SSM parameter in the target account.
+3. Enter the Budget notification email in the workflow's required `alert_email`
+   input when starting a deployment.
+
+The workflow uses short-lived OIDC credentials and does not require long-lived
+AWS access keys in GitHub.
+
+## Project rules
+
+- Stay within the AWS Free Tier and Gemini free tier.
+- Route all user-facing text through i18next with both `uk` and `en` keys.
+- Never invent CV experience or skills; AI prompts must explicitly prohibit it.
+- Keep secrets out of code and Git.
+- Update this README when setup or deployment commands change.
+
+## Project status
+
+CareerOS is being developed as an incremental prototype for junior IT job seekers
+in Ukraine. See [`BUILD_PLAN.md`](BUILD_PLAN.md) for the current roadmap.
