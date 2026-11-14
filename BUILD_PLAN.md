@@ -1,4 +1,4 @@
-# CareerOS — 9-step build plan for Claude Code
+#  CareerOS — 9-step build plan for Claude Code
 
 How to use this file:
 - Put it in the root of your repo as `BUILD_PLAN.md`.
