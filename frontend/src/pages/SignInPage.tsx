@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { signIn } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
@@ -24,10 +24,21 @@ export const SignInPage: React.FC = () => {
   const isReset = searchParams.get('reset') === 'true';
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/app';
 
+  // onPostLogin sets the user first, so this page already redirects via <Navigate> below while
+  // POST /me is still running (seconds on a cold Lambda). Only navigate if we are still here,
+  // otherwise a late navigate() would pull the user back from wherever they clicked meanwhile.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true; // StrictMode re-runs effects in dev, so set it on every mount
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
   const finishSignIn = async () => {
     // Synchronize user profile in DynamoDB (creates it + logs SIGNUP on the first sign-in)
     await onPostLogin();
-    navigate(from, { replace: true });
+    if (mounted.current) navigate(from, { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
