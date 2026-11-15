@@ -4,10 +4,9 @@ import { resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { authErrorKey } from '../lib/authErrors.js';
-import { AuthCentered } from '../components/AuthLayout.js';
-import { ErrorAlert, Icon, PasswordInput } from '../components/ui.js';
+import { AuthDark } from '../components/AuthLayout.js';
+import { ErrorAlert, Icon, LangSwitch, PasswordInput, passwordRules } from '../components/ui.js';
 
-const titleCls = 'mb-2 font-display font-extrabold text-[28px] sm:text-[30px] leading-[1.15] tracking-[-0.02em]';
 
 export const ForgotPasswordPage: React.FC = () => {
   const { t } = useTranslation();
@@ -72,19 +71,44 @@ export const ForgotPasswordPage: React.FC = () => {
     }
   };
 
+  const strong = passwordRules(newPassword).every((r) => r.ok);
+
+  const KeyIcon = (
+    <div className="w-[60px] h-[60px] rounded-[18px] bg-sun-wash flex items-center justify-center shrink-0">
+      <svg viewBox="0 0 24 24" className="w-[30px] h-[30px] animate-wiggle origin-[50%_30%]" aria-hidden="true">
+        <circle cx="8" cy="15" r="4.5" stroke="#111318" strokeWidth="2" fill="none" />
+        <path d="M11.5 12L20 3.5M17 6.5l2.5 2.5M15 8.5l2 2" stroke="#111318" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+
   return (
-    <AuthCentered>
-      <div className="flex flex-col gap-4">
-        <Link to="/signin" className="self-start inline-flex items-center gap-1.5 min-h-[44px] text-[15px] text-accent no-underline hover:text-accent-hover">
-          <Icon.arrowLeft className="w-4 h-4" /> {t('auth.backToSignIn')}
-        </Link>
+    <AuthDark
+      topRight={
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Link to="/signin" className="hidden sm:inline-flex items-center gap-1.5 min-h-[44px] text-[15px] text-accent-on no-underline hover:text-white">
+            <Icon.arrowLeft className="w-4 h-4" /> {t('auth.backToSignIn')}
+          </Link>
+          <LangSwitch onBlue compact />
+        </div>
+      }
+    >
+      <div className="bg-white rounded-[28px] p-6 sm:p-10 shadow-deep">
+        <div className="flex items-center gap-4 mb-6">
+          {KeyIcon}
+          <div>
+            <p className="mb-1.5 font-mono text-[13px] font-semibold text-ink-muted">{step === 'request' ? t('auth.resetStep1') : t('auth.resetStep2')}</p>
+            <h1 className="font-display font-extrabold text-[26px] sm:text-[30px] leading-[1.1] tracking-[-0.03em]">
+              {step === 'request' ? t('auth.resetTitle') : t('auth.newPasswordTitle')}
+            </h1>
+          </div>
+        </div>
+
+        {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
 
         {step === 'request' ? (
-          <form onSubmit={handleRequestCode} className="bg-white border border-line rounded-[20px] p-6 sm:p-9">
-            <p className="eyebrow mb-2">{t('auth.resetStep1')}</p>
-            <h1 className={titleCls}>{t('auth.resetTitle')}</h1>
-            <p className="mb-7 text-base text-ink-soft">{t('auth.resetDesc')}</p>
-            {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
+          <form onSubmit={handleRequestCode}>
+            <p className="mb-6 text-base text-ink-soft">{t('auth.resetDesc')}</p>
             <div className="mb-7">
               <label className="lbl" htmlFor="email">{t('auth.emailLabel')}</label>
               <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('auth.emailPlaceholder')} className="field" />
@@ -94,52 +118,51 @@ export const ForgotPasswordPage: React.FC = () => {
             </button>
           </form>
         ) : (
-          <>
-            <section className="bg-white border border-line rounded-2xl px-5 sm:px-6 py-4 sm:py-5 flex items-center gap-3.5">
-              <span className="shrink-0 w-7 h-7 rounded-full bg-accent-chip text-accent-ink flex items-center justify-center">
-                <Icon.check className="w-4 h-4" />
+          <form onSubmit={handleConfirmReset}>
+            <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-accent-wash mb-6 text-sm text-accent-ink">
+              <Icon.check className="w-[18px] h-[18px] shrink-0" />
+              <span className="flex-1 min-w-0 truncate">
+                {t('auth.codeSentTo')} <strong>{email}</strong>
               </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold leading-snug">{t('auth.resetCodeSent')}</p>
-                <p className="mt-0.5 text-sm text-ink-muted truncate">{email}</p>
-              </div>
               <button
                 type="button"
                 onClick={() => {
                   setError(null);
                   setStep('request');
                 }}
-                className="btn-ghost px-3 text-sm"
+                className="min-h-[36px] px-1 font-semibold text-accent hover:text-accent-hover"
               >
                 {t('auth.change')}
               </button>
-            </section>
-
-            <form onSubmit={handleConfirmReset} className="bg-white border border-line rounded-[20px] p-6 sm:p-9">
-              <p className="eyebrow mb-2">{t('auth.resetStep2')}</p>
-              <h1 className={titleCls}>{t('auth.newPasswordTitle')}</h1>
-              <p className="mb-7 text-base text-ink-soft">{t('auth.newPasswordLead')}</p>
-              {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
-              <div className="mb-5">
-                <label className="lbl" htmlFor="code">{t('auth.codeFromEmail')}</label>
-                <input id="code" required inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} className="field font-mono tracking-[0.2em]" />
-              </div>
-              <div className="mb-5">
-                <label className="lbl" htmlFor="p1">{t('auth.newPasswordLabel')}</label>
-                <PasswordInput id="p1" required minLength={8} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-                <p className="hint">{t('auth.passwordHint')}</p>
-              </div>
-              <div className="mb-7">
-                <label className="lbl" htmlFor="p2">{t('auth.repeatPasswordLabel')}</label>
-                <PasswordInput id="p2" required autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} invalid={repeat !== '' && repeat !== newPassword} />
-              </div>
-              <button type="submit" disabled={loading} className="btn-primary btn-lg w-full">
-                {loading ? t('common.loading') : t('auth.resetPasswordBtn')}
-              </button>
-            </form>
-          </>
+            </div>
+            <div className="mb-5">
+              <label className="lbl" htmlFor="code">{t('auth.codeFromEmail')}</label>
+              <input id="code" required inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} className="field font-mono text-xl tracking-[0.25em]" />
+            </div>
+            <div className="mb-5">
+              <label className="lbl" htmlFor="p1">{t('auth.newPasswordLabel')}</label>
+              <PasswordInput id="p1" required minLength={8} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              {strong ? (
+                <p className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-accent-ink">
+                  <Icon.check className="w-3.5 h-3.5" /> {t('auth.strongPassword')}
+                </p>
+              ) : (
+                <p className="hint">{t('auth.rules.min8')}</p>
+              )}
+            </div>
+            <div className="mb-7">
+              <label className="lbl" htmlFor="p2">{t('auth.repeatPasswordLabel')}</label>
+              <PasswordInput id="p2" required autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} invalid={repeat !== '' && repeat !== newPassword} />
+            </div>
+            <button type="submit" disabled={loading} className="btn-primary btn-lg w-full">
+              {loading ? t('common.loading') : t('auth.resetPasswordBtn')}
+            </button>
+          </form>
         )}
+        <Link to="/signin" className="sm:hidden mt-5 flex items-center justify-center gap-1.5 min-h-[44px] text-[15px] link">
+          <Icon.arrowLeft className="w-4 h-4" /> {t('auth.backToSignIn')}
+        </Link>
       </div>
-    </AuthCentered>
+    </AuthDark>
   );
 };

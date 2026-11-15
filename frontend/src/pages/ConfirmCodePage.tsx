@@ -4,11 +4,11 @@ import { confirmSignUp, resendSignUpCode } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { authErrorKey } from '../lib/authErrors.js';
-import { AuthCentered } from '../components/AuthLayout.js';
+import { AuthBlue } from '../components/AuthLayout.js';
 import { CodeInput } from '../components/CodeInput.js';
-import { ErrorAlert, Icon, OkAlert } from '../components/ui.js';
+import { ErrorAlert, LangSwitch, OkAlert } from '../components/ui.js';
 
-const RESEND_COOLDOWN_S = 60;
+const RESEND_COOLDOWN_S = 45;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 export const ConfirmCodePage: React.FC = () => {
@@ -24,7 +24,8 @@ export const ConfirmCodePage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
+  // Arriving from sign-up means a code was just sent, so wait before offering another.
+  const [cooldown, setCooldown] = useState(emailFromLink ? RESEND_COOLDOWN_S : 0);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -80,15 +81,32 @@ export const ConfirmCodePage: React.FC = () => {
   };
 
   return (
-    <AuthCentered>
-      <form onSubmit={handleConfirm} className="bg-white border border-line rounded-[20px] p-6 sm:p-10 text-center">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-accent-soft flex items-center justify-center text-accent">
-          <Icon.mail className="w-8 h-8" />
+    <AuthBlue
+      topRight={
+        <div className="flex items-center gap-3">
+          <span className="hidden sm:inline font-mono text-[13px] font-semibold text-accent-on">{t('auth.stepOf', { n: 2 })}</span>
+          <LangSwitch onBlue compact />
         </div>
-        <h1 className="mb-2.5 font-display font-extrabold text-[28px] sm:text-[30px] leading-[1.15] tracking-[-0.02em]">{t('auth.confirmTitle')}</h1>
+      }
+    >
+      <form onSubmit={handleConfirm} className="bg-white rounded-[28px] px-5 pb-8 pt-2 sm:px-10 sm:pb-11 text-center shadow-deep">
+        <svg width="120" height="104" viewBox="0 0 120 104" aria-hidden="true" className="block mx-auto -mt-[84px] mb-5">
+          <rect x="10" y="38" width="100" height="62" rx="10" fill="#111318" />
+          <g className="animate-letter">
+            <rect x="24" y="14" width="72" height="56" rx="6" fill="#fff" stroke="#E3E5EA" strokeWidth="2" />
+            <rect x="34" y="26" width="34" height="5" rx="2.5" fill="#2346D8" />
+            <rect x="34" y="37" width="48" height="4" rx="2" fill="#E3E5EA" />
+            <rect x="34" y="46" width="40" height="4" rx="2" fill="#E3E5EA" />
+          </g>
+          <path d="M10 48l50 30 50-30v42a10 10 0 0 1-10 10H20a10 10 0 0 1-10-10z" fill="#23262E" />
+          <circle cx="8" cy="20" r="5" fill="#FFD84D" className="animate-blink" />
+          <circle cx="112" cy="14" r="4" fill="#FFD84D" className="animate-blink [animation-delay:.8s]" />
+          <circle cx="104" cy="40" r="3" fill="#FFD84D" className="animate-blink [animation-delay:1.6s]" />
+        </svg>
+        <h1 className="mb-2.5 font-display font-extrabold text-[28px] sm:text-[32px] leading-[1.1] tracking-[-0.03em]">{t('auth.confirmTitle')}</h1>
 
         {emailFromLink ? (
-          <p className="mb-8 text-base leading-normal text-ink-soft">
+          <p className="mb-7 text-base leading-normal text-ink-soft">
             {t('auth.confirmSentTo')}
             <br />
             <strong className="text-ink break-all">{emailFromLink}</strong>
@@ -115,19 +133,20 @@ export const ConfirmCodePage: React.FC = () => {
           {loading ? t('common.loading') : t('auth.confirmBtn')}
         </button>
 
-        <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-1 mt-4 text-[15px]">
+        <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-1 mt-5 text-[15px]">
           {cooldown > 0 ? (
             <span className="text-ink-muted min-h-[44px] inline-flex items-center">
-              {t('auth.resendIn', { time: mmss(cooldown) })}
+              {t('auth.resendIn', { time: '' })}
+              <span className="ml-1 font-mono text-ink">{mmss(cooldown)}</span>
             </span>
           ) : (
-            <button type="button" onClick={() => void handleResend()} disabled={resending} className="btn-ghost px-2">
+            <button type="button" onClick={() => void handleResend()} disabled={resending} className="min-h-[44px] px-1 font-bold text-accent hover:text-accent-hover">
               {resending ? t('common.loading') : t('auth.resendBtn')}
             </button>
           )}
           <Link to="/signup" className="link min-h-[44px] inline-flex items-center">{t('auth.changeEmail')}</Link>
         </div>
       </form>
-    </AuthCentered>
+    </AuthBlue>
   );
 };

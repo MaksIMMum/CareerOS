@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -35,23 +35,34 @@ export const Icon = {
 
 /* ---------- Brand ---------- */
 
-export const LogoMark: React.FC<{ size?: number }> = ({ size = 32 }) => (
+/** `light` = white tile with a blue tick, for blue or dark backgrounds. */
+export const LogoMark: React.FC<{ size?: number; light?: boolean }> = ({ size = 32, light }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="shrink-0">
-    <rect width="32" height="32" rx="8" fill="#2346D8" />
-    <path d="M9 16.5l4.5 4.5L23 11" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <rect width="32" height="32" rx="8" fill={light ? '#FFFFFF' : '#2346D8'} />
+    <path d="M9 16.5l4.5 4.5L23 11" stroke={light ? '#2346D8' : '#fff'} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-export const Logo: React.FC<{ to: string; size?: number; dark?: boolean }> = ({ to, size = 32, dark }) => (
-  <Link to={to} className={`flex items-center gap-2.5 no-underline ${dark ? 'text-white hover:text-white' : 'text-ink hover:text-ink'}`}>
-    <LogoMark size={size} />
+/** `tone`: 'ink' on light backgrounds, 'onBlue' (white tile), 'onDark' (blue tile, white text). */
+export const Logo: React.FC<{ to: string; size?: number; tone?: 'ink' | 'onBlue' | 'onDark' }> = ({ to, size = 32, tone = 'ink' }) => (
+  <Link to={to} className={`flex items-center gap-2.5 no-underline ${tone === 'ink' ? 'text-ink hover:text-ink' : 'text-white hover:text-white'}`}>
+    <LogoMark size={size} light={tone === 'onBlue'} />
     <span className="font-display font-extrabold text-xl leading-none tracking-[-0.02em]">CareerOS</span>
   </Link>
 );
 
+/** Concentric rings used as a faint decoration on blue backgrounds. */
+export const Rings: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <svg viewBox="0 0 520 520" aria-hidden="true" className={`absolute pointer-events-none opacity-[0.12] ${className}`}>
+    {[200, 140, 80].map((r) => (
+      <circle key={r} cx="260" cy="260" r={r} stroke="#fff" strokeWidth="2" fill="none" />
+    ))}
+  </svg>
+);
+
 /* ---------- Language switch: segmented UA | EN ---------- */
 
-export const LangSwitch: React.FC<{ compact?: boolean }> = ({ compact }) => {
+export const LangSwitch: React.FC<{ compact?: boolean; onBlue?: boolean }> = ({ compact, onBlue }) => {
   const { t, i18n } = useTranslation();
   const current = i18n.language === 'en' ? 'en' : 'uk';
   const options: Array<['uk' | 'en', string]> = [
@@ -59,14 +70,18 @@ export const LangSwitch: React.FC<{ compact?: boolean }> = ({ compact }) => {
     ['en', 'EN'],
   ];
   return (
-    <div role="group" aria-label={t('nav.language')} className="flex border border-line-strong rounded-lg overflow-hidden font-mono text-[13px] font-semibold leading-none shrink-0">
+    <div role="group" aria-label={t('nav.language')} className={`flex border rounded-lg overflow-hidden font-mono text-[13px] font-semibold leading-none shrink-0 ${onBlue ? 'border-white/40' : 'border-line-strong'}`}>
       {options.map(([lng, label]) => (
         <button
           key={lng}
           type="button"
           aria-pressed={current === lng}
           onClick={() => void i18n.changeLanguage(lng)}
-          className={`${compact ? 'px-2.5' : 'px-3'} min-h-[40px] ${current === lng ? 'bg-ink text-white' : 'bg-white text-ink-soft hover:bg-canvas'}`}
+          className={`${compact ? 'px-2.5' : 'px-3'} min-h-[40px] ${
+            onBlue
+              ? current === lng ? 'bg-white text-ink' : 'bg-transparent text-white hover:bg-white/10'
+              : current === lng ? 'bg-ink text-white' : 'bg-white text-ink-soft hover:bg-canvas'
+          }`}
         >
           {label}
         </button>
@@ -113,23 +128,38 @@ export const PasswordInput: React.FC<
   );
 };
 
-/** 0–3: empty, under 8, 8+, 12+ with mixed character classes. */
-export function passwordStrength(pw: string): number {
-  if (!pw) return 0;
-  if (pw.length < 8) return 1;
-  const classes = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((r) => r.test(pw)).length;
-  return pw.length >= 12 && classes >= 2 ? 3 : 2;
+export type PasswordRule = { key: 'min8' | 'letter' | 'digit'; ok: boolean };
+
+export function passwordRules(pw: string): PasswordRule[] {
+  return [
+    { key: 'min8', ok: pw.length >= 8 },
+    { key: 'letter', ok: /[A-Za-zА-Яа-яІіЇїЄєҐґ]/.test(pw) },
+    { key: 'digit', ok: /\d/.test(pw) },
+  ];
 }
 
-export const StrengthBar: React.FC<{ password: string }> = ({ password }) => {
+/** Three bars + a checklist that ticks off as the password meets each rule. */
+export const PasswordChecklist: React.FC<{ password: string }> = ({ password }) => {
   const { t } = useTranslation();
-  const level = passwordStrength(password);
+  const rules = passwordRules(password);
+  const ok = rules.filter((r) => r.ok).length;
+  const color = ok === 3 ? 'bg-accent' : ok === 2 ? 'bg-[#F59E0B]' : 'bg-warn-strong';
   return (
-    <div className="flex gap-1.5 mt-2.5" role="img" aria-label={t('auth.strength', { level })}>
-      {[1, 2, 3].map((i) => (
-        <span key={i} className={`flex-1 h-1 rounded-full ${i <= level ? (level === 1 ? 'bg-warn-strong' : 'bg-accent') : 'bg-line-strong'}`} />
-      ))}
-    </div>
+    <>
+      <div className="flex gap-1.5 mt-2.5" role="img" aria-label={t('auth.strength', { level: ok })}>
+        {[0, 1, 2].map((i) => (
+          <span key={i} className={`flex-1 h-[5px] rounded-full ${i < ok && password ? color : 'bg-line-strong'}`} />
+        ))}
+      </div>
+      <ul className="flex flex-wrap gap-x-[18px] gap-y-2 mt-2.5">
+        {rules.map((r) => (
+          <li key={r.key} className={`inline-flex items-center gap-1.5 text-[13px] ${r.ok ? 'text-accent-ink font-semibold' : 'text-ink-muted'}`}>
+            {r.ok ? <Icon.check className="w-3.5 h-3.5" /> : <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" aria-hidden="true"><path d="M8 12h8" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>}
+            {t(`auth.rules.${r.key}`)}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 };
 
@@ -139,19 +169,19 @@ export const StrengthBar: React.FC<{ password: string }> = ({ password }) => {
 export const scoreColor = (s: number) => (s >= 50 ? 'text-accent' : 'text-warn-strong');
 const ringColor = (s: number) => (s >= 50 ? '#2346D8' : '#C2410C');
 
-export const ScoreRing: React.FC<{ score: number; size?: number }> = ({ score, size = 148 }) => {
+export const ScoreRing: React.FC<{ score: number; size?: number; onBlue?: boolean }> = ({ score, size = 148, onBlue }) => {
   const { t } = useTranslation();
   const r = 64;
   const c = 2 * Math.PI * r;
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg viewBox="0 0 148 148" className="w-full h-full -rotate-90" role="img" aria-label={t('analysis.scoreAria', { score })}>
-        <circle cx="74" cy="74" r={r} fill="none" stroke="#E3E5EA" strokeWidth="12" />
-        <circle cx="74" cy="74" r={r} fill="none" stroke={ringColor(score)} strokeWidth="12" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - score / 100)} />
+        <circle cx="74" cy="74" r={r} fill="none" stroke={onBlue ? 'rgba(255,255,255,0.2)' : '#E3E5EA'} strokeWidth="12" />
+        <circle cx="74" cy="74" r={r} fill="none" stroke={onBlue ? '#FFD84D' : ringColor(score)} strokeWidth="12" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - score / 100)} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
         <span className="font-mono font-bold leading-none" style={{ fontSize: size * 0.3 }}>{score}</span>
-        <span className="text-[13px] text-ink-muted mt-1">{t('analysis.of100')}</span>
+        <span className={`text-[13px] mt-1 ${onBlue ? 'text-accent-on' : 'text-ink-muted'}`}>{t('analysis.of100')}</span>
       </div>
     </div>
   );
@@ -160,3 +190,55 @@ export const ScoreRing: React.FC<{ score: number; size?: number }> = ({ score, s
 export const Spinner: React.FC = () => (
   <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" aria-hidden="true" />
 );
+
+/** Blue band under the app header: page title, lead and an optional slot on the right. */
+export const PageHero: React.FC<{ eyebrow?: string; title: React.ReactNode; lead?: React.ReactNode; aside?: React.ReactNode; overlap?: boolean }> = ({
+  eyebrow,
+  title,
+  lead,
+  aside,
+  overlap,
+}) => (
+  <div className="bg-accent text-white relative overflow-hidden">
+    <Rings className="hidden sm:block w-[460px] h-[460px] -right-[120px] -top-[160px]" />
+    <div className={`relative max-w-[1240px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 ${overlap ? 'pb-24 sm:pb-28' : 'pb-10 sm:pb-12'} flex flex-wrap gap-6 items-end justify-between`}>
+      <div className="min-w-0">
+        {eyebrow && <p className="mb-2.5 font-mono text-[13px] text-accent-on">{eyebrow}</p>}
+        <h1 className="mb-2.5 font-display font-extrabold text-[34px] sm:text-[48px] leading-[1.05] tracking-[-0.035em]">{title}</h1>
+        {lead && <p className="text-base sm:text-lg text-accent-on max-w-[640px]">{lead}</p>}
+      </div>
+      {aside}
+    </div>
+  </div>
+);
+
+/** Decorative score that counts from `from` to `to`, holds, then restarts. Static if reduced motion. */
+export function useCountUp(from: number, to: number): number {
+  const [score, setScore] = useState(from);
+  useEffect(() => {
+    let reduce = false;
+    try {
+      reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+      /* matchMedia unavailable */
+    }
+    if (reduce) {
+      setScore(to);
+      return;
+    }
+    let hold = 0;
+    const id = window.setInterval(() => {
+      setScore((s) => {
+        if (s < to) return s + 1;
+        hold += 1;
+        if (hold > 45) {
+          hold = 0;
+          return from;
+        }
+        return s;
+      });
+    }, 80);
+    return () => window.clearInterval(id);
+  }, [from, to]);
+  return score;
+}

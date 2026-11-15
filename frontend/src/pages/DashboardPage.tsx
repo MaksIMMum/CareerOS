@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { listAnalyses, listCvs, type AnalysisSummary, type CvSummary } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
-import { ErrorAlert, Icon, scoreColor } from '../components/ui.js';
+import { ErrorAlert, Icon, PageHero, scoreColor } from '../components/ui.js';
 
 export const DashboardPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -31,23 +31,24 @@ export const DashboardPage: React.FC = () => {
   const email = profile?.email || user?.signInDetails?.loginId || user?.username || '';
 
   return (
-    <main className="flex-1 max-w-[1240px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <p className="eyebrow mb-2">{t('dashboard.eyebrow')}</p>
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="page-title mb-2">{t('dashboard.title')}</h1>
-          <p className="text-[17px] text-ink-soft max-w-[620px]">{t('dashboard.lead')}</p>
-        </div>
-        <Link to="/app/analyses/new" className="btn-primary btn-lg self-start sm:self-auto">
-          {t('dashboard.startCta')} <Icon.arrowRight className="w-[18px] h-[18px]" />
-        </Link>
-      </div>
-
+    <div className="flex-1">
+      <PageHero
+        overlap
+        eyebrow={t('dashboard.eyebrow')}
+        title={t('dashboard.title')}
+        lead={t('dashboard.lead')}
+        aside={
+          <Link to="/app/analyses/new" className="btn-primary btn-lg">
+            {t('dashboard.startCta')} <Icon.arrowRight className="w-[18px] h-[18px]" />
+          </Link>
+        }
+      />
+    <main className="relative max-w-[1240px] w-full mx-auto -mt-16 sm:-mt-20 px-4 sm:px-6 pb-16">
       {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6">
         {/* Latest analyses */}
-        <section className="card">
+        <section className="card shadow-lift">
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="section-title">{t('dashboard.historyTitle')}</h2>
             <Link to="/app/analyses" className="text-sm link">{t('dashboard.seeAll')} →</Link>
@@ -80,7 +81,7 @@ export const DashboardPage: React.FC = () => {
 
         <div className="flex flex-col gap-6">
           {/* CVs */}
-          <section className="card">
+          <section className="card shadow-lift">
             <div className="flex items-center justify-between gap-3 mb-2">
               <h2 className="section-title">{t('dashboard.cvsTitle')}</h2>
               <Link to="/app/cvs" className="text-sm link">{t('dashboard.manage')} →</Link>
@@ -102,11 +103,11 @@ export const DashboardPage: React.FC = () => {
           </section>
 
           {/* Account */}
-          <section className="card">
-            <p className="eyebrow mb-3">{t('dashboard.account')}</p>
+          <section className="card bg-night border-night text-white">
+            <p className="eyebrow mb-3 text-night-muted">{t('dashboard.account')}</p>
             <p className="font-semibold break-all">{email}</p>
-            {profile?.createdAt && <p className="mt-1 text-sm text-ink-muted">{t('dashboard.joined', { date: fmt(profile.createdAt) })}</p>}
-            <button type="button" onClick={() => void signOut()} className="btn-danger mt-4">
+            {profile?.createdAt && <p className="mt-1 text-sm text-night-muted">{t('dashboard.joined', { date: fmt(profile.createdAt) })}</p>}
+            <button type="button" onClick={() => void signOut()} className="btn mt-4 bg-transparent text-white border-[1.5px] border-white/40 rounded-xl hover:bg-white/10 hover:text-white">
               {t('nav.signOut')}
             </button>
           </section>
@@ -121,7 +122,7 @@ export const DashboardPage: React.FC = () => {
             [<Icon.chat className="w-8 h-8" />, t('dashboard.interviewTitle'), t('dashboard.interviewText')],
           ] as const
         ).map(([icon, title, text]) => (
-          <section key={title} className="p-6 rounded-2xl border border-dashed border-line-dashed bg-subtle">
+          <section key={title} className="p-6 rounded-3xl border-2 border-dashed border-line-dashed bg-subtle">
             <div className="mb-4 flex items-start justify-between gap-3 text-ink-faint">
               {icon}
               <span className="chip-neutral font-mono text-xs uppercase tracking-wider">{t('common.soon')}</span>
@@ -132,5 +133,6 @@ export const DashboardPage: React.FC = () => {
         ))}
       </div>
     </main>
+    </div>
   );
 };

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listAnalyses, type AnalysisSummary } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
-import { ErrorAlert, Icon, scoreColor } from '../components/ui.js';
+import { ErrorAlert, Icon, PageHero, scoreColor } from '../components/ui.js';
 
 export const HistoryPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -24,28 +24,25 @@ export const HistoryPage: React.FC = () => {
     new Date(iso).toLocaleDateString(i18n.language === 'en' ? 'en-GB' : 'uk-UA', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <main className="flex-1 max-w-[960px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <p className="eyebrow mb-2">{t('analysis.eyebrow')}</p>
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="page-title mb-2">{t('analysis.history')}</h1>
-          <p className="text-[17px] text-ink-soft">{t('analysis.historySubtitle')}</p>
-        </div>
-        <Link to="/app/analyses/new" className="btn-primary self-start sm:self-auto">
-          {t('analysis.newBtn')}
-        </Link>
-      </div>
-
+    <div className="flex-1">
+      <PageHero
+        overlap
+        eyebrow={t('analysis.eyebrow')}
+        title={t('analysis.history')}
+        lead={t('analysis.historySubtitle')}
+        aside={<Link to="/app/analyses/new" className="btn-primary btn-lg">{t('analysis.newBtn')}</Link>}
+      />
+    <main className="relative max-w-[1240px] w-full mx-auto -mt-16 sm:-mt-20 px-4 sm:px-6 pb-16">
       {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
 
       {items === null ? (
-        <p className="text-sm text-ink-muted">{t('analysis.loading')}</p>
+        <div className="card shadow-lift"><p className="text-sm text-ink-muted">{t('analysis.loading')}</p></div>
       ) : items.length === 0 ? (
-        <div className="p-10 rounded-2xl border border-dashed border-line-dashed bg-subtle text-center text-[15px] text-ink-muted">
+        <div className="card shadow-lift p-10 text-center text-[15px] text-ink-muted">
           {t('analysis.historyEmpty')}
         </div>
       ) : (
-        <ul className="bg-white rounded-2xl border border-line divide-y divide-line overflow-hidden">
+        <ul className="bg-white rounded-3xl border border-line divide-y divide-line overflow-hidden shadow-lift">
           {items.map((a) => (
             <li key={a.id}>
               <Link to={`/app/analyses/${a.id}`} className="flex items-center gap-4 px-4 sm:px-6 py-4 no-underline text-ink hover:bg-canvas hover:text-ink">
@@ -77,5 +74,6 @@ export const HistoryPage: React.FC = () => {
         </ul>
       )}
     </main>
+    </div>
   );
 };

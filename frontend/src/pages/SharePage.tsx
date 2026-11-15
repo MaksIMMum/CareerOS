@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getPublicShare, type PublicShare } from '../lib/api.js';
-import { LangSwitch, LogoMark } from '../components/ui.js';
+import { Icon, LangSwitch, LogoMark, Rings } from '../components/ui.js';
 
 /** Public read-only card behind /s/<id>: job title + score before → after. No CV text. */
 export const SharePage: React.FC = () => {
@@ -21,46 +21,50 @@ export const SharePage: React.FC = () => {
         <LangSwitch />
       </div>
       <div className="flex-1 flex items-center justify-center py-8">
-        <article className="w-full max-w-[1000px] rounded-[20px] bg-night text-white p-6 sm:p-12 lg:px-[72px] lg:py-16 flex flex-col gap-10 sm:gap-14">
-          <div className="flex flex-wrap justify-between items-center gap-4">
-            <Link to="/?src=share" className="flex items-center gap-3 text-white no-underline hover:text-white">
-              <LogoMark size={40} />
+        <article className="w-full max-w-[1100px] rounded-[28px] bg-accent text-white px-6 py-8 sm:px-16 sm:py-14 flex flex-col gap-10 relative overflow-hidden">
+          <Rings className="w-[620px] h-[620px] -right-[180px] -top-[200px]" />
+          <div className="relative flex items-center">
+            <Link to="/?src=share" className="flex items-center gap-3.5 text-white no-underline hover:text-white">
+              <LogoMark size={44} light />
               <span className="font-display font-extrabold text-2xl sm:text-[28px] leading-none tracking-[-0.02em]">CareerOS</span>
             </Link>
-            <span className="font-mono text-sm sm:text-lg text-night-muted">{t('sharePage.title')}</span>
           </div>
 
-          {missing ? (
-            <p className="text-lg text-night-text">{t('sharePage.notFound')}</p>
-          ) : !data ? (
-            <p className="text-night-muted">{t('analysis.loading')}</p>
-          ) : (
-            <div className="flex flex-wrap items-center gap-6 sm:gap-14">
-              <div>
-                <p className="mb-2 text-base sm:text-xl text-night-muted">{t('sharePage.before')}</p>
-                <p className="font-mono font-bold text-[72px] sm:text-[140px] leading-[0.9] text-[#6B7180]">{data.scoreBefore}</p>
-              </div>
-              <svg viewBox="0 0 96 40" className="w-14 sm:w-24 text-[#6B7180]" aria-hidden="true">
-                <path d="M4 20h80M68 6l16 14-16 14" stroke="currentColor" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <div>
-                <p className="mb-2 text-base sm:text-xl text-night-muted">{t('sharePage.after')}</p>
-                <p className="font-mono font-bold text-[96px] sm:text-[200px] leading-[0.85] text-accent-light">{data.scoreAfter}</p>
-              </div>
+          <div className="relative flex flex-wrap items-center justify-between gap-10">
+            <div className="flex-[1_1_360px] min-w-0 max-w-[560px]">
+              <p className="mb-3.5 font-mono text-base sm:text-xl text-accent-on">{t('sharePage.label')}</p>
+              {missing ? (
+                <p className="text-2xl font-display font-extrabold">{t('sharePage.notFound')}</p>
+              ) : (
+                <h1 className="mb-4 font-display font-extrabold text-[32px] sm:text-[52px] leading-[1.05] tracking-[-0.03em] break-words">
+                  {data ? data.jobTitle : t('analysis.loading')}
+                </h1>
+              )}
+              <p className="text-lg sm:text-[22px] leading-[1.4] text-accent-on">{t('sharePage.tagline')}</p>
             </div>
-          )}
+            {data && (
+              <div className="relative flex items-center gap-4 sm:gap-5 text-ink mx-auto sm:mx-0 sm:mr-6">
+                <div aria-hidden="true" className="absolute w-[280px] h-[280px] sm:w-[380px] sm:h-[380px] rounded-full bg-sun left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                <div className="relative text-center">
+                  <p className="mb-1.5 font-semibold text-base sm:text-lg">{t('sharePage.before')}</p>
+                  <p className="font-mono font-bold text-[64px] sm:text-[96px] leading-[0.9] opacity-45">{data.scoreBefore}</p>
+                </div>
+                <svg viewBox="0 0 56 28" className="relative w-10 sm:w-14" aria-hidden="true">
+                  <path d="M3 14h44M37 4l10 10-10 10" stroke="#111318" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div className="relative text-center">
+                  <p className="mb-1.5 font-semibold text-base sm:text-lg">{t('sharePage.after')}</p>
+                  <p className="font-mono font-bold text-[96px] sm:text-[150px] leading-[0.85]">{data.scoreAfter}</p>
+                </div>
+              </div>
+            )}
+          </div>
 
-          <div className="flex flex-wrap justify-between items-end gap-6 sm:gap-8">
-            <div className="min-w-0 flex-[1_1_320px]">
-              {data && <h1 className="mb-2 font-display font-extrabold text-2xl sm:text-4xl leading-[1.15] tracking-[-0.02em] break-words">{data.jobTitle}</h1>}
-              <p className="text-base sm:text-xl text-night-muted">{t('sharePage.tagline')}</p>
-            </div>
-            <div className="w-full sm:w-auto">
-              <Link to="/?src=share" className="btn btn-lg w-full sm:w-auto bg-white text-ink hover:bg-canvas hover:text-ink whitespace-nowrap">
-                {t('sharePage.cta')}
-              </Link>
-              <p className="mt-2 text-sm text-night-muted text-center">{t('sharePage.ctaHint')}</p>
-            </div>
+          <div className="relative flex flex-wrap justify-between items-center gap-5">
+            <p className="font-mono font-semibold text-sm sm:text-xl text-accent-on">{t('sharePage.ctaHint')}</p>
+            <Link to="/?src=share" className="btn btn-lg w-full sm:w-auto bg-ink text-sun hover:bg-ink-2 hover:text-sun">
+              {t('sharePage.cta')} <Icon.arrowRight className="w-[18px] h-[18px]" />
+            </Link>
           </div>
         </article>
       </div>

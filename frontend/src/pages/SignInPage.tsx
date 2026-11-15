@@ -4,8 +4,8 @@ import { signIn } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { authErrorKey } from '../lib/authErrors.js';
-import { AuthSplit } from '../components/AuthLayout.js';
-import { ErrorAlert, OkAlert, PasswordInput } from '../components/ui.js';
+import { AuthSplit, SignInAside } from '../components/AuthLayout.js';
+import { ErrorAlert, Icon, OkAlert, PasswordInput } from '../components/ui.js';
 
 export const SignInPage: React.FC = () => {
   const { t } = useTranslation();
@@ -77,11 +77,20 @@ export const SignInPage: React.FC = () => {
     return <Navigate to={from} replace />;
   }
 
+  const hour = new Date().getHours();
+  const greeting = t(`auth.greeting.${hour < 12 ? 'morning' : hour < 18 ? 'day' : 'evening'}`);
+
   return (
-    <AuthSplit asideTitle={t('auth.aside.signInTitle')}>
+    <AuthSplit aside={<SignInAside />}>
       <form onSubmit={handleSubmit}>
-        <h1 className="mb-2 font-display font-extrabold text-[32px] sm:text-[36px] leading-[1.1] tracking-[-0.03em]">{t('auth.signInTitle')}</h1>
-        <p className="mb-7 text-base text-ink-soft">{t('auth.signInLead')}</p>
+        <p className="mb-4 inline-flex items-center gap-2 px-3 py-[7px] rounded-full bg-sun-wash text-sun-badge text-[13px] font-semibold leading-none">
+          <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden="true">
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          {greeting}
+        </p>
+        <h1 className="mb-2.5 font-display font-extrabold text-[36px] sm:text-[44px] leading-[1.05] tracking-[-0.035em]">{t('auth.signInTitle')}</h1>
+        <p className="mb-7 text-[17px] text-ink-soft">{t('auth.signInLead')}</p>
 
         {(isConfirmed || isReset) && !error && (
           <OkAlert className="mb-6">{isReset ? t('auth.resetSuccess') : t('auth.confirmedNotice')}</OkAlert>
@@ -92,7 +101,7 @@ export const SignInPage: React.FC = () => {
             {badCredentials && (
               <>
                 {' '}
-                <Link to="/forgot-password" className="font-semibold text-warn-ink underline">{t('auth.forgotPasswordLink')}</Link>
+                <Link to="/forgot-password" className="font-bold text-warn-ink underline">{t('auth.forgotPasswordLink')}</Link>
               </>
             )}
           </ErrorAlert>
@@ -112,10 +121,17 @@ export const SignInPage: React.FC = () => {
 
         <button type="submit" disabled={loading} className="btn-primary btn-lg w-full">
           {loading ? t('common.loading') : t('auth.signInBtn')}
+          {!loading && <Icon.arrowRight className="w-[18px] h-[18px]" />}
         </button>
-        <p className="mt-6 text-center text-[15px] text-ink-soft">
-          {t('auth.noAccountPrompt')} <Link to="/signup" className="link">{t('auth.signUpLink')}</Link>
-        </p>
+
+        <div className="flex items-center gap-3.5 my-7 text-[13px] text-ink-muted">
+          <span className="flex-1 h-px bg-line" />
+          {t('auth.firstTime')}
+          <span className="flex-1 h-px bg-line" />
+        </div>
+        <Link to="/signup" className="btn-outline w-full min-h-[54px] rounded-[14px] text-base">
+          {t('auth.createFreeAccount')}
+        </Link>
       </form>
     </AuthSplit>
   );

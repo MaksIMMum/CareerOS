@@ -11,7 +11,7 @@ import {
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { LIMITS } from '../lib/limits.js';
 import { extractPdfText, PdfExtractError } from '../lib/pdf.js';
-import { ErrorAlert, Icon, OkAlert } from '../components/ui.js';
+import { ErrorAlert, Icon, OkAlert, PageHero } from '../components/ui.js';
 
 type Editor = { id: string | null; name: string; text: string };
 
@@ -124,24 +124,25 @@ export const CvsPage: React.FC = () => {
     });
 
   return (
-    <main className="flex-1 max-w-[1240px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <p className="eyebrow mb-2">{t('cvs.eyebrow')}</p>
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="page-title mb-2">{t('cvs.title')}</h1>
-          <p className="text-[17px] text-ink-soft">{t('cvs.subtitle')}</p>
-        </div>
-        <button type="button" onClick={startNew} className="btn-primary self-start sm:self-auto">
-          {t('cvs.newBtn')}
-        </button>
-      </div>
-
+    <div className="flex-1">
+      <PageHero
+        overlap
+        eyebrow={t('cvs.eyebrow')}
+        title={t('cvs.title')}
+        lead={t('cvs.subtitle')}
+        aside={
+          <button type="button" onClick={startNew} className="btn-primary btn-lg">
+            {t('cvs.newBtn')}
+          </button>
+        }
+      />
+    <main className="relative max-w-[1240px] w-full mx-auto -mt-16 sm:-mt-20 px-4 sm:px-6 pb-16">
       {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
       {notice && <OkAlert className="mb-6">{notice}</OkAlert>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6">
         {/* Saved versions */}
-        <section className="card self-start">
+        <section className="card shadow-lift self-start">
           <p className="eyebrow mb-4">{t('cvs.listTitle')}</p>
           {loadingList ? (
             <p className="text-sm text-ink-muted">{t('cvs.loading')}</p>
@@ -154,10 +155,10 @@ export const CvsPage: React.FC = () => {
                 return (
                   <li
                     key={cv.id}
-                    className={`p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 ${on ? 'border-2 border-accent bg-accent-wash' : 'border border-line-strong'}`}
+                    className={`p-4 rounded-2xl border-2 flex flex-wrap items-center justify-between gap-3 ${on ? 'border-accent bg-accent-wash' : 'border-line'}`}
                   >
                     <div className="min-w-0 flex-[1_1_140px]">
-                      <p className="font-semibold leading-snug truncate">{cv.name}</p>
+                      <p className="font-display font-bold leading-snug truncate">{cv.name}</p>
                       <p className="text-[13px] text-ink-muted">{t('cvs.updated', { date: formatDate(cv.updatedAt) })}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
@@ -177,17 +178,17 @@ export const CvsPage: React.FC = () => {
 
         {/* Editor */}
         {editor ? (
-          <form onSubmit={save} className="card space-y-5">
-            <h2 className="font-display font-bold text-xl">
+          <form onSubmit={save} className="card shadow-lift space-y-5">
+            <h2 className="font-display font-extrabold text-[21px]">
               {editor.id ? t('cvs.editorEditTitle') : t('cvs.editorNewTitle')}
             </h2>
 
-            <div className="p-5 border-[1.5px] border-dashed border-line-dashed rounded-xl text-center bg-subtle">
+            <div className="p-5 border-2 border-dashed border-line-dashed rounded-2xl text-center bg-subtle">
               <input ref={fileInput} type="file" accept="application/pdf,.pdf" className="hidden" onChange={onPdfChosen} />
-              <Icon.upload className="w-7 h-7 mx-auto text-ink-muted" />
-              <p className="mt-2 mb-1 font-semibold">{t('cvs.uploadTitle')}</p>
+              <Icon.upload className="w-[30px] h-[30px] mx-auto text-accent" />
+              <p className="mt-2 mb-1 font-display font-bold">{t('cvs.uploadTitle')}</p>
               <p className="mb-3.5 text-[13px] text-ink-muted max-w-md mx-auto">{t('cvs.uploadHint')}</p>
-              <button type="button" onClick={() => fileInput.current?.click()} disabled={!!busy} className="btn-secondary">
+              <button type="button" onClick={() => fileInput.current?.click()} disabled={!!busy} className="btn-outline">
                 {busy === 'extracting' ? t('cvs.extracting') : t('cvs.uploadPdf')}
               </button>
               <p className="mt-3 text-[13px] text-ink-muted">{t('cvs.orPaste')}</p>
@@ -241,11 +242,12 @@ export const CvsPage: React.FC = () => {
             </div>
           </form>
         ) : (
-          <div className="hidden lg:flex items-center justify-center rounded-2xl border border-dashed border-line-dashed bg-subtle p-10 text-[15px] text-ink-muted text-center">
+          <div className="hidden lg:flex items-center justify-center rounded-3xl border-2 border-dashed border-line-dashed bg-white/60 p-10 text-[15px] text-ink-muted text-center">
             {busy === 'opening' ? t('cvs.loading') : cvs.length ? t('cvs.pickHint') : t('cvs.empty')}
           </div>
         )}
       </div>
     </main>
+    </div>
   );
 };

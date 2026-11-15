@@ -14,16 +14,32 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+  }
+}
+
 @layer components {
   /* Buttons — every one is at least 44 px tall (touch target). */
   .btn {
     @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-[18px] rounded-[10px] text-[15px] font-semibold leading-none no-underline transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  /* Main call to action: yellow with a hard "pressable" shadow. */
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-hover hover:text-white;
+    @apply btn bg-sun text-ink font-display font-extrabold shadow-sun-sm rounded-xl hover:bg-[#FFCF1F] hover:text-ink active:translate-y-[3px] active:shadow-none disabled:shadow-none disabled:bg-line disabled:text-ink-muted;
+  }
+  .btn-accent {
+    @apply btn bg-accent text-white font-display font-bold rounded-xl hover:bg-accent-hover hover:text-white;
+  }
+  .btn-outline {
+    @apply btn bg-white text-ink border-[1.5px] border-ink font-display font-bold rounded-xl hover:bg-canvas hover:text-ink;
+  }
+  .btn-ghost-light {
+    @apply btn bg-transparent text-white border-[1.5px] border-white/50 rounded-xl hover:bg-white/10 hover:text-white;
   }
   .btn-secondary {
-    @apply btn bg-white text-ink border border-line-strong hover:bg-canvas;
+    @apply btn bg-white text-ink border-[1.5px] border-line-strong rounded-xl hover:bg-canvas hover:text-ink;
   }
   .btn-dark {
     @apply btn bg-ink text-white hover:bg-ink-2 hover:text-white;
@@ -35,7 +51,10 @@
     @apply btn bg-white text-warn border border-warn-border hover:bg-warn-alert;
   }
   .btn-lg {
-    @apply min-h-[56px] px-7 rounded-xl font-display text-[17px] font-bold;
+    @apply min-h-[58px] px-7 rounded-[14px] font-display text-lg font-extrabold;
+  }
+  .btn-primary.btn-lg:not(:disabled) {
+    @apply shadow-sun;
   }
   .btn-sm {
     @apply min-h-[36px] px-3 text-sm rounded-lg;
@@ -43,7 +62,7 @@
 
   /* Cards and text */
   .card {
-    @apply bg-white border border-line rounded-2xl p-5 sm:p-7;
+    @apply bg-white border border-line rounded-3xl p-5 sm:p-7;
   }
   .eyebrow {
     @apply font-mono text-xs font-medium uppercase tracking-[0.08em] text-ink-muted;
@@ -52,12 +71,22 @@
     @apply font-display font-extrabold text-[32px] sm:text-[40px] leading-[1.1] tracking-[-0.03em] text-ink;
   }
   .section-title {
-    @apply font-display font-bold text-[22px] leading-[1.3] text-ink;
+    @apply font-display font-extrabold text-[22px] sm:text-[26px] leading-[1.2] tracking-[-0.02em] text-ink;
+  }
+  .display-title {
+    @apply font-display font-extrabold text-[34px] sm:text-[44px] leading-[1.1] tracking-[-0.03em];
+  }
+  /* Tilted yellow highlight behind a key phrase in a heading. */
+  .mark-sun {
+    @apply inline-block bg-sun text-ink px-2.5 rounded-lg -rotate-[1.5deg];
+  }
+  .num-badge {
+    @apply w-9 h-9 shrink-0 rounded-xl bg-ink text-sun inline-flex items-center justify-center font-mono font-bold text-[15px];
   }
 
   /* Form fields */
   .field {
-    @apply w-full min-h-[52px] px-4 py-3.5 border border-line-strong rounded-[10px] bg-white text-base leading-snug text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent;
+    @apply w-full min-h-[54px] px-4 py-3.5 border-[1.5px] border-line-strong rounded-xl bg-white text-base leading-snug text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent-ring;
   }
   .field-error {
     @apply border-warn-strong;

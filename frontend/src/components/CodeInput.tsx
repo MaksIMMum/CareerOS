@@ -55,7 +55,7 @@ export const CodeInput: React.FC<{ value: string; onChange: (v: string) => void;
             inputMode="numeric"
             autoComplete={i === 0 ? 'one-time-code' : 'off'}
             aria-label={t('auth.digit', { n: i + 1 })}
-            className="w-full min-w-0 h-14 sm:h-16 border border-line-strong rounded-xl bg-white text-center font-mono font-bold text-2xl sm:text-[28px] text-ink focus:outline-none focus:border-2 focus:border-accent"
+            className={`w-full min-w-0 h-14 sm:h-[66px] border-[1.5px] rounded-[14px] text-center font-mono font-bold text-2xl sm:text-[28px] text-ink focus:outline-none focus:border-2 focus:border-accent focus:ring-4 focus:ring-accent-ring ${d ? 'bg-accent-wash border-accent-border' : 'bg-white border-line-strong'}`}
           />
         ))}
       </div>
