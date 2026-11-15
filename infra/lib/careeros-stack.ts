@@ -58,6 +58,22 @@ const ROUTES: RouteDef[] = [
   { id: 'Me', file: 'me.ts', routes: [{ path: '/me', methods: [GET, POST] }] },
   crud('Cvs', 'cvs.ts', '/cvs'),
   crud('Vacancies', 'vacancies.ts', '/vacancies'),
+  {
+    id: 'Analyses',
+    file: 'analyses.ts',
+    routes: [
+      { path: '/analyses', methods: [GET, POST] },
+      { path: '/analyses/{id}', methods: [GET] },
+      { path: '/analyses/{id}/share', methods: [POST] },
+    ],
+  },
+  // Read-only share card (job title + score before/after, no CV text) for /s/<id> links.
+  {
+    id: 'PublicShare',
+    file: 'public-share.ts',
+    routes: [{ path: '/public/shares/{shareId}', methods: [GET] }],
+    public: true,
+  },
 ];
 
 export interface CareerOsStackProps extends cdk.StackProps {

@@ -104,16 +104,31 @@ describe('GeminiProvider', () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects JSON that does not match the zod schema', async () => {
-    const { p } = provider(response(200, geminiBody('{"score":"high","missing":[]}')));
+  it('rejects JSON that does not match the zod schema (after one retry)', async () => {
+    const bad = () => response(200, geminiBody('{"score":"high","missing":[]}'));
+    const { p, fetchFn } = provider(bad(), bad());
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     await expect(p.generateJson('x', schema)).rejects.toMatchObject({ code: 'schema_mismatch' });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries once on truncated JSON and returns the good second answer', async () => {
+    const { p, fetchFn } = provider(
+      response(200, geminiBody('{"score":72,"missing":["Dock')),
+      response(200, geminiBody('{"score":72,"missing":["Docker"]}')),
+    );
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await p.generateJson('x', schema)).toEqual({ score: 72, missing: ['Docker'] });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
   it('reports blocked prompts and empty answers distinctly', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const blocked = provider(response(200, { promptFeedback: { blockReason: 'SAFETY' } }));
     await expect(blocked.p.generateJson('x', schema)).rejects.toMatchObject({ code: 'blocked' });
 
-    const empty = provider(response(200, { candidates: [{ content: { parts: [] }, finishReason: 'MAX_TOKENS' }] }));
+    const emptyBody = { candidates: [{ content: { parts: [] }, finishReason: 'MAX_TOKENS' }] };
+    const empty = provider(response(200, emptyBody), response(200, emptyBody));
     await expect(empty.p.generateJson('x', schema)).rejects.toMatchObject({ code: 'empty' });
   });
 

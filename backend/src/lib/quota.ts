@@ -6,11 +6,16 @@ import { isConditionalCheckFailed, json, type Lang } from './http.js';
 type Client = Pick<DynamoDBDocumentClient, 'send'>;
 
 /** AI calls allowed per user per day (Kyiv calendar day). */
-export const DAILY_LIMITS = { analysis: 10, interview: 5 } as const;
+/** `share` = the before/after re-score made when a result is shared (once per analysis). */
+export const DAILY_LIMITS = { analysis: 10, interview: 5, share: 10 } as const;
 export type QuotaKind = keyof typeof DAILY_LIMITS;
 
 // Counter attribute on the QUOTA#<day> item for each kind.
-const COUNTER: Record<QuotaKind, string> = { analysis: 'analyses', interview: 'interviews' };
+const COUNTER: Record<QuotaKind, string> = {
+  analysis: 'analyses',
+  interview: 'interviews',
+  share: 'shares',
+};
 
 /** The quota day in Ukraine's time zone, so limits reset at local midnight. */
 export function quotaDay(now: Date = new Date()): string {
@@ -103,6 +108,7 @@ export async function getQuotaUsage(
   return {
     analysis: { used: Number(item[COUNTER.analysis] ?? 0), limit: DAILY_LIMITS.analysis },
     interview: { used: Number(item[COUNTER.interview] ?? 0), limit: DAILY_LIMITS.interview },
+    share: { used: Number(item[COUNTER.share] ?? 0), limit: DAILY_LIMITS.share },
   };
 }
 
@@ -114,6 +120,10 @@ const MESSAGES: Record<QuotaKind, Record<Lang, (limit: number) => string>> = {
   interview: {
     uk: (n) => `Ви використали всі ${n} мок-інтерв'ю на сьогодні. Ліміт оновиться опівночі за Києвом.`,
     en: (n) => `You have used all ${n} mock interviews for today. The limit resets at midnight Kyiv time.`,
+  },
+  share: {
+    uk: (n) => `Ви поділилися ${n} результатами сьогодні — це максимум. Ліміт оновиться опівночі за Києвом.`,
+    en: (n) => `You have shared ${n} results today, which is the maximum. The limit resets at midnight Kyiv time.`,
   },
 };
 

@@ -109,6 +109,8 @@ export interface GeminiOptions {
   deadlineMs?: number;
   retryDelayMs?: number;
   temperature?: number;
+  /** Caps the answer length; a full improved CV needs a few thousand tokens. */
+  maxOutputTokens?: number;
 }
 
 interface GeminiResponse {
@@ -126,6 +128,7 @@ export class GeminiProvider implements LlmProvider {
   private readonly deadlineMs: number;
   private readonly retryDelayMs: number;
   private readonly temperature: number;
+  private readonly maxOutputTokens: number;
 
   constructor(opts: GeminiOptions = {}) {
     this.model = opts.model ?? process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
@@ -135,6 +138,7 @@ export class GeminiProvider implements LlmProvider {
     this.deadlineMs = opts.deadlineMs ?? 25_000;
     this.retryDelayMs = opts.retryDelayMs ?? 1_000;
     this.temperature = opts.temperature ?? 0.3;
+    this.maxOutputTokens = opts.maxOutputTokens ?? 8192;
   }
 
   async generateJson<S extends z.ZodType>(prompt: string, schema: S): Promise<z.infer<S>> {
@@ -142,7 +146,7 @@ export class GeminiProvider implements LlmProvider {
     const body = JSON.stringify(this.buildRequest(prompt, schema));
     const started = Date.now();
 
-    // At most 2 attempts: the second only after a 429/5xx/network error/timeout.
+    // At most 2 attempts: the second only after a 429/5xx/network error/timeout or a bad answer.
     for (let attempt = 1; ; attempt++) {
       const remaining = this.deadlineMs - (Date.now() - started);
       let res: Response;
@@ -173,7 +177,18 @@ export class GeminiProvider implements LlmProvider {
         throw new LlmError('http', `Gemini HTTP ${res.status}`, res.status);
       }
 
-      return parseAndValidate(this.extractText((await res.json()) as GeminiResponse), schema);
+      try {
+        return parseAndValidate(this.extractText((await res.json()) as GeminiResponse), schema);
+      } catch (err) {
+        // Models occasionally return truncated/malformed JSON; one fresh attempt usually fixes it.
+        const retryable =
+          err instanceof LlmError && ['invalid_json', 'schema_mismatch', 'empty'].includes(err.code);
+        if (attempt === 1 && retryable && this.canRetry(started)) {
+          console.warn('Retrying after bad model output', { code: (err as LlmError).code });
+          continue;
+        }
+        throw err;
+      }
     }
   }
 
@@ -194,7 +209,11 @@ export class GeminiProvider implements LlmProvider {
     return {
       systemInstruction: { parts: [{ text: NO_INVENT_RULE }] },
       contents: [{ role: 'user', parts: [{ text: prompt + schemaHint }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: this.temperature },
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: this.temperature,
+        maxOutputTokens: this.maxOutputTokens,
+      },
     };
   }
 

@@ -135,6 +135,16 @@ describe('CareerOsStack', () => {
     }
   });
 
+  it('protects the analysis routes and exposes only the share card publicly', () => {
+    for (const key of ['GET /analyses', 'POST /analyses', 'GET /analyses/{id}', 'POST /analyses/{id}/share']) {
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: key, AuthorizationType: 'JWT' });
+    }
+    t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'GET /public/shares/{shareId}',
+      AuthorizationType: 'NONE',
+    });
+  });
+
   it('enables DynamoDB TTL on the ttl attribute (quota items expire)', () => {
     t.hasResourceProperties('AWS::DynamoDB::Table', {
       TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },

@@ -68,6 +68,7 @@ describe('refundQuota / getQuotaUsage', () => {
     expect(await getQuotaUsage('u1', { client: { send }, tableName: 't' })).toEqual({
       analysis: { used: 4, limit: 10 },
       interview: { used: 0, limit: 5 },
+      share: { used: 0, limit: 10 },
     });
   });
 });
