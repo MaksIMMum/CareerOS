@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { confirmSignUp, resendSignUpCode } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { authErrorKey } from '../lib/authErrors.js';
+import { AuthCentered } from '../components/AuthLayout.js';
+import { CodeInput } from '../components/CodeInput.js';
+import { ErrorAlert, Icon, OkAlert } from '../components/ui.js';
+
+const RESEND_COOLDOWN_S = 60;
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 export const ConfirmCodePage: React.FC = () => {
   const { t } = useTranslation();
@@ -11,12 +17,20 @@ export const ConfirmCodePage: React.FC = () => {
   const navigate = useNavigate();
   const { isConfigured } = useAuth();
 
-  const [email, setEmail] = useState(searchParams.get('email') || '');
+  const emailFromLink = searchParams.get('email') || '';
+  const [email, setEmail] = useState(emailFromLink);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = window.setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [cooldown]);
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +70,7 @@ export const ConfirmCodePage: React.FC = () => {
     try {
       await resendSignUpCode({ username: email.trim() });
       setSuccessMsg(t('auth.resendSuccess'));
+      setCooldown(RESEND_COOLDOWN_S);
     } catch (err: any) {
       console.error('Resend error', err);
       setError(t(authErrorKey(err)));
@@ -65,82 +80,54 @@ export const ConfirmCodePage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            {t('auth.confirmTitle')}
-          </h2>
-          <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-            {t('auth.confirmDesc')}
+    <AuthCentered>
+      <form onSubmit={handleConfirm} className="bg-white border border-line rounded-[20px] p-6 sm:p-10 text-center">
+        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-accent-soft flex items-center justify-center text-accent">
+          <Icon.mail className="w-8 h-8" />
+        </div>
+        <h1 className="mb-2.5 font-display font-extrabold text-[28px] sm:text-[30px] leading-[1.15] tracking-[-0.02em]">{t('auth.confirmTitle')}</h1>
+
+        {emailFromLink ? (
+          <p className="mb-8 text-base leading-normal text-ink-soft">
+            {t('auth.confirmSentTo')}
+            <br />
+            <strong className="text-ink break-all">{emailFromLink}</strong>
           </p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
-            {error}
-          </div>
+        ) : (
+          <>
+            <p className="mb-6 text-base leading-normal text-ink-soft">{t('auth.confirmDesc')}</p>
+            <div className="mb-5 text-left">
+              <label className="lbl" htmlFor="email">{t('auth.emailLabel')}</label>
+              <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('auth.emailPlaceholder')} className="field" />
+            </div>
+          </>
         )}
 
-        {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg">
-            {successMsg}
-          </div>
-        )}
+        {error && <ErrorAlert className="mb-5 text-left">{error}</ErrorAlert>}
+        {successMsg && <OkAlert className="mb-5 text-left">{successMsg}</OkAlert>}
 
-        <form onSubmit={handleConfirm} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.emailLabel')}
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('auth.emailPlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.codeLabel')}
-            </label>
-            <input
-              type="text"
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder={t('auth.codePlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm tracking-widest text-center text-lg font-mono"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-sm transition-colors"
-          >
-            {loading ? t('common.loading') : t('auth.confirmBtn')}
-          </button>
-        </form>
-
-        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={resending}
-            className="font-medium text-blue-600 hover:text-blue-500 disabled:opacity-50"
-          >
-            {resending ? t('common.loading') : t('auth.resendBtn')}
-          </button>
-
-          <Link to="/signin" className="font-medium text-slate-500 hover:text-slate-700">
-            {t('nav.signIn')}
-          </Link>
+        <div className="mb-3">
+          <CodeInput value={code} onChange={setCode} legend={t('auth.codeLabel')} />
         </div>
-      </div>
-    </div>
+        <p className="mb-7 text-[13px] text-ink-muted">{t('auth.codeHint')}</p>
+
+        <button type="submit" disabled={loading || code.length !== 6} className="btn-primary btn-lg w-full">
+          {loading ? t('common.loading') : t('auth.confirmBtn')}
+        </button>
+
+        <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-1 mt-4 text-[15px]">
+          {cooldown > 0 ? (
+            <span className="text-ink-muted min-h-[44px] inline-flex items-center">
+              {t('auth.resendIn', { time: mmss(cooldown) })}
+            </span>
+          ) : (
+            <button type="button" onClick={() => void handleResend()} disabled={resending} className="btn-ghost px-2">
+              {resending ? t('common.loading') : t('auth.resendBtn')}
+            </button>
+          )}
+          <Link to="/signup" className="link min-h-[44px] inline-flex items-center">{t('auth.changeEmail')}</Link>
+        </div>
+      </form>
+    </AuthCentered>
   );
 };

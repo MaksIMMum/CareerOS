@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listAnalyses, type AnalysisSummary } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
-import { scoreColor } from './AnalysisResultPage.js';
+import { ErrorAlert, Icon, scoreColor } from '../components/ui.js';
 
 export const HistoryPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -24,48 +24,58 @@ export const HistoryPage: React.FC = () => {
     new Date(iso).toLocaleDateString(i18n.language === 'en' ? 'en-GB' : 'uk-UA', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <div className="flex-1 max-w-3xl w-full mx-auto px-4 py-6 sm:py-10">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
+    <main className="flex-1 max-w-[960px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <p className="eyebrow mb-2">{t('analysis.eyebrow')}</p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{t('analysis.history')}</h1>
-          <p className="mt-1 text-sm text-slate-600">{t('analysis.historySubtitle')}</p>
+          <h1 className="page-title mb-2">{t('analysis.history')}</h1>
+          <p className="text-[17px] text-ink-soft">{t('analysis.historySubtitle')}</p>
         </div>
-        <Link to="/app/analyses/new" className="self-start sm:self-auto px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm">
+        <Link to="/app/analyses/new" className="btn-primary self-start sm:self-auto">
           {t('analysis.newBtn')}
         </Link>
       </div>
 
-      {error && <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{error}</div>}
+      {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
 
       {items === null ? (
-        <p className="text-sm text-slate-500">{t('analysis.loading')}</p>
+        <p className="text-sm text-ink-muted">{t('analysis.loading')}</p>
       ) : items.length === 0 ? (
-        <div className="p-8 bg-white rounded-2xl border border-dashed border-slate-300 text-center text-sm text-slate-600">
+        <div className="p-10 rounded-2xl border border-dashed border-line-dashed bg-subtle text-center text-[15px] text-ink-muted">
           {t('analysis.historyEmpty')}
         </div>
       ) : (
-        <ul className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm">
+        <ul className="bg-white rounded-2xl border border-line divide-y divide-line overflow-hidden">
           {items.map((a) => (
             <li key={a.id}>
-              <Link to={`/app/analyses/${a.id}`} className="flex items-center gap-4 p-4 hover:bg-slate-50">
-                <span className={`w-12 text-center text-2xl font-extrabold ${scoreColor(a.matchScore)}`}>{a.matchScore}</span>
+              <Link to={`/app/analyses/${a.id}`} className="flex items-center gap-4 px-4 sm:px-6 py-4 no-underline text-ink hover:bg-canvas hover:text-ink">
+                <span className={`w-12 text-center font-mono font-bold text-[28px] leading-none ${scoreColor(a.matchScore)}`}>{a.matchScore}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-slate-900 truncate">
+                  <span className="block font-semibold truncate">
                     {a.vacancyTitle}
-                    {a.company && <span className="text-slate-500 font-normal"> · {a.company}</span>}
+                    {a.company && <span className="text-ink-muted font-normal"> · {a.company}</span>}
                   </span>
-                  <span className="block text-xs text-slate-500 truncate">
-                    📄 {a.cvName} · {fmt(a.createdAt)}
-                    {a.shareScores && ` · 🔗 ${a.shareScores.before} → ${a.shareScores.after}`}
-                    {a.flaggedCount > 0 && ' · ⚠️'}
+                  <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted">
+                    <span className="truncate max-w-full">{a.cvName} · {fmt(a.createdAt)}</span>
+                    {a.shareScores && (
+                      <span className="font-mono">
+                        {a.shareScores.before} → {a.shareScores.after}
+                      </span>
+                    )}
+                    {a.flaggedCount > 0 && (
+                      <span className="inline-flex items-center gap-1 text-warn">
+                        <Icon.warn className="w-3.5 h-3.5" /> {t('analysis.flaggedBadge')}
+                      </span>
+                    )}
                   </span>
                 </span>
-                <span className="text-sm text-blue-600 shrink-0">{t('analysis.open')} →</span>
+                <Icon.arrowRight className="w-5 h-5 shrink-0 text-ink-faint" />
+                <span className="sr-only">{t('analysis.open')}</span>
               </Link>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </main>
   );
 };

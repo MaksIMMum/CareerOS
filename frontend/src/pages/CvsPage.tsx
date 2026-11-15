@@ -11,11 +11,9 @@ import {
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { LIMITS } from '../lib/limits.js';
 import { extractPdfText, PdfExtractError } from '../lib/pdf.js';
+import { ErrorAlert, Icon, OkAlert } from '../components/ui.js';
 
 type Editor = { id: string | null; name: string; text: string };
-
-const inputClass =
-  'w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm bg-white';
 
 export const CvsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -126,166 +124,128 @@ export const CvsPage: React.FC = () => {
     });
 
   return (
-    <div className="flex-1 max-w-5xl w-full mx-auto px-4 py-6 sm:py-10">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
+    <main className="flex-1 max-w-[1240px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <p className="eyebrow mb-2">{t('cvs.eyebrow')}</p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{t('cvs.title')}</h1>
-          <p className="mt-1 text-sm text-slate-600">{t('cvs.subtitle')}</p>
+          <h1 className="page-title mb-2">{t('cvs.title')}</h1>
+          <p className="text-[17px] text-ink-soft">{t('cvs.subtitle')}</p>
         </div>
-        <button
-          onClick={startNew}
-          className="self-start sm:self-auto px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm"
-        >
+        <button type="button" onClick={startNew} className="btn-primary self-start sm:self-auto">
           {t('cvs.newBtn')}
         </button>
       </div>
 
-      {error && (
-        <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <div role="status" className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl">
-          {notice}
-        </div>
-      )}
+      {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
+      {notice && <OkAlert className="mb-6">{notice}</OkAlert>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6">
         {/* Saved versions */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm self-start">
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
-            {t('cvs.listTitle')}
-          </h2>
+        <section className="card self-start">
+          <p className="eyebrow mb-4">{t('cvs.listTitle')}</p>
           {loadingList ? (
-            <p className="text-sm text-slate-500">{t('cvs.loading')}</p>
+            <p className="text-sm text-ink-muted">{t('cvs.loading')}</p>
           ) : cvs.length === 0 ? (
-            <p className="text-sm text-slate-500">{t('cvs.empty')}</p>
+            <p className="text-[15px] text-ink-muted">{t('cvs.empty')}</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
-              {cvs.map((cv) => (
-                <li
-                  key={cv.id}
-                  className={`py-3 flex items-center justify-between gap-3 ${editor?.id === cv.id ? 'bg-blue-50/60 -mx-2 px-2 rounded-lg' : ''}`}
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-slate-900 truncate">📄 {cv.name}</p>
-                    <p className="text-xs text-slate-500">{t('cvs.updated', { date: formatDate(cv.updatedAt) })}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => void openCv(cv.id)}
-                      disabled={!!busy}
-                      className="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 hover:bg-blue-50 rounded-lg disabled:opacity-50"
-                    >
-                      {t('cvs.edit')}
-                    </button>
-                    <button
-                      onClick={() => void remove(cv)}
-                      disabled={!!busy}
-                      className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 rounded-lg disabled:opacity-50"
-                    >
-                      {t('cvs.delete')}
-                    </button>
-                  </div>
-                </li>
-              ))}
+            <ul className="flex flex-col gap-2.5">
+              {cvs.map((cv) => {
+                const on = editor?.id === cv.id;
+                return (
+                  <li
+                    key={cv.id}
+                    className={`p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 ${on ? 'border-2 border-accent bg-accent-wash' : 'border border-line-strong'}`}
+                  >
+                    <div className="min-w-0 flex-[1_1_140px]">
+                      <p className="font-semibold leading-snug truncate">{cv.name}</p>
+                      <p className="text-[13px] text-ink-muted">{t('cvs.updated', { date: formatDate(cv.updatedAt) })}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button type="button" onClick={() => void openCv(cv.id)} disabled={!!busy} className="btn-secondary btn-sm min-h-[40px]">
+                        {t('cvs.edit')}
+                      </button>
+                      <button type="button" onClick={() => void remove(cv)} disabled={!!busy} className="btn-danger btn-sm min-h-[40px]">
+                        {t('cvs.delete')}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
 
         {/* Editor */}
         {editor ? (
-          <form onSubmit={save} className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-semibold text-slate-900">
+          <form onSubmit={save} className="card space-y-5">
+            <h2 className="font-display font-bold text-xl">
               {editor.id ? t('cvs.editorEditTitle') : t('cvs.editorNewTitle')}
             </h2>
 
-            <div className="p-3 sm:p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50">
-              <input
-                ref={fileInput}
-                type="file"
-                accept="application/pdf,.pdf"
-                className="hidden"
-                onChange={onPdfChosen}
-              />
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                disabled={!!busy}
-                className="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-blue-700 bg-white border border-blue-200 hover:bg-blue-50 rounded-xl disabled:opacity-50"
-              >
-                📎 {busy === 'extracting' ? t('cvs.extracting') : t('cvs.uploadPdf')}
+            <div className="p-5 border-[1.5px] border-dashed border-line-dashed rounded-xl text-center bg-subtle">
+              <input ref={fileInput} type="file" accept="application/pdf,.pdf" className="hidden" onChange={onPdfChosen} />
+              <Icon.upload className="w-7 h-7 mx-auto text-ink-muted" />
+              <p className="mt-2 mb-1 font-semibold">{t('cvs.uploadTitle')}</p>
+              <p className="mb-3.5 text-[13px] text-ink-muted max-w-md mx-auto">{t('cvs.uploadHint')}</p>
+              <button type="button" onClick={() => fileInput.current?.click()} disabled={!!busy} className="btn-secondary">
+                {busy === 'extracting' ? t('cvs.extracting') : t('cvs.uploadPdf')}
               </button>
-              <p className="mt-2 text-xs text-slate-500">{t('cvs.uploadHint')}</p>
-              <p className="mt-1 text-xs text-slate-500">{t('cvs.orPaste')}</p>
+              <p className="mt-3 text-[13px] text-ink-muted">{t('cvs.orPaste')}</p>
             </div>
 
             <div>
-              <label htmlFor="cv-name" className="block text-sm font-medium text-slate-700 mb-1">
-                {t('cvs.nameLabel')}
-              </label>
+              <label htmlFor="cv-name" className="lbl">{t('cvs.nameLabel')}</label>
               <input
                 id="cv-name"
                 value={editor.name}
                 maxLength={LIMITS.CV_NAME_MAX}
                 onChange={(e) => setEditor({ ...editor, name: e.target.value })}
                 placeholder={t('cvs.namePlaceholder')}
-                className={inputClass}
+                className="field"
               />
             </div>
 
             <div>
-              <label htmlFor="cv-text" className="block text-sm font-medium text-slate-700 mb-1">
-                {t('cvs.textLabel')}
-              </label>
+              <label htmlFor="cv-text" className="lbl">{t('cvs.textLabel')}</label>
               <textarea
                 id="cv-text"
                 value={editor.text}
                 onChange={(e) => setEditor({ ...editor, text: e.target.value })}
                 placeholder={t('cvs.textPlaceholder')}
                 rows={14}
-                className={`${inputClass} font-mono text-[13px] leading-relaxed min-h-[16rem]`}
+                className="field font-mono text-[14px] leading-relaxed min-h-[16rem] resize-y"
               />
-              <div className="mt-1 flex flex-wrap justify-between gap-2 text-xs">
-                <span className="text-slate-500">{t('cvs.privacyNote')}</span>
-                <span className={over > 0 ? 'text-red-600 font-semibold' : 'text-slate-500'}>
+              <div className="mt-2 flex flex-wrap justify-between gap-2 text-[13px]">
+                <span className="text-ink-muted">{t('cvs.privacyNote')}</span>
+                <span className={`font-mono ${over > 0 ? 'text-warn-strong font-bold' : 'text-ink-muted'}`}>
                   {t('cvs.chars', { count: chars, max: LIMITS.CV_TEXT_MAX })}
                 </span>
               </div>
-              {over > 0 && (
-                <p className="mt-1 text-xs text-red-600">
-                  {t('cvs.tooLong', { over, max: LIMITS.CV_TEXT_MAX })}
-                </p>
-              )}
+              {over > 0 && <p className="mt-1 text-[13px] text-warn-strong">{t('cvs.tooLong', { over, max: LIMITS.CV_TEXT_MAX })}</p>}
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2.5 sm:justify-end pt-1">
               <button
                 type="button"
                 onClick={() => {
                   resetMessages();
                   setEditor(null);
                 }}
-                className="px-4 py-2.5 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-xl"
+                className="btn-secondary"
               >
                 {t('cvs.cancel')}
               </button>
-              <button
-                type="submit"
-                disabled={!canSave}
-                className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-sm"
-              >
+              <button type="submit" disabled={!canSave} className="btn-primary">
                 {busy === 'saving' ? t('cvs.saving') : t('cvs.save')}
               </button>
             </div>
           </form>
         ) : (
-          <div className="hidden lg:flex items-center justify-center rounded-2xl border border-dashed border-slate-300 p-10 text-sm text-slate-500 text-center">
+          <div className="hidden lg:flex items-center justify-center rounded-2xl border border-dashed border-line-dashed bg-subtle p-10 text-[15px] text-ink-muted text-center">
             {busy === 'opening' ? t('cvs.loading') : cvs.length ? t('cvs.pickHint') : t('cvs.empty')}
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 };

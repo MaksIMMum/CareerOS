@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { setSourceAnswer } from '../lib/source.js';
 import { authErrorKey } from '../lib/authErrors.js';
+import { AuthSplit } from '../components/AuthLayout.js';
+import { ErrorAlert, PasswordInput, StrengthBar } from '../components/ui.js';
 
 export const SignUpPage: React.FC = () => {
   const { t } = useTranslation();
@@ -61,102 +63,52 @@ export const SignUpPage: React.FC = () => {
     }
   };
 
+  const sources = ['university_chat', 'poster', 'dou', 'telegram', 'linkedin', 'friend', 'other'] as const;
+
   return (
-    <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            {t('auth.signUpTitle')}
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            {t('auth.hasAccountPrompt')}{' '}
-            <Link to="/signin" className="font-semibold text-blue-600 hover:text-blue-500">
-              {t('auth.signInLink')}
-            </Link>
-          </p>
+    <AuthSplit asideTitle={t('auth.aside.signUpTitle')}>
+      <form onSubmit={handleSubmit} noValidate={false}>
+        <h1 className="mb-2 font-display font-extrabold text-[32px] sm:text-[36px] leading-[1.1] tracking-[-0.03em]">{t('auth.signUpTitle')}</h1>
+        <p className="mb-8 text-base text-ink-soft">{t('auth.signUpLead')}</p>
+
+        {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
+
+        <div className="mb-5">
+          <label className="lbl" htmlFor="email">{t('auth.emailLabel')}</label>
+          <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('auth.emailPlaceholder')} className="field" />
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
-            {error}
-          </div>
-        )}
+        <div className="mb-5">
+          <label className="lbl" htmlFor="password">{t('auth.passwordLabel')}</label>
+          <PasswordInput id="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-describedby="pw-hint" />
+          <StrengthBar password={password} />
+          <p id="pw-hint" className="hint">{t('auth.passwordHint')}</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.emailLabel')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('auth.emailPlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-            />
-          </div>
+        <div className="mb-6">
+          <label className="lbl" htmlFor="source">
+            {t('auth.sourceLabel')} <span className="lbl-optional">{t('common.optional')}</span>
+          </label>
+          <select id="source" value={source} onChange={(e) => setSource(e.target.value)} className="field appearance-auto">
+            <option value="">{t('auth.sourcePlaceholder')}</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>{t(`auth.sourceOptions.${s}`)}</option>
+            ))}
+          </select>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.passwordLabel')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('auth.passwordPlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-            />
-            <p className="mt-1 text-xs text-slate-500">{t('auth.passwordHint')}</p>
-          </div>
+        <label className="flex gap-3 items-start p-4 mb-6 border border-line-strong rounded-xl bg-white cursor-pointer">
+          <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} className="shrink-0 w-5 h-5 mt-0.5 accent-accent" />
+          <span className="text-sm leading-normal text-ink-2">{t('auth.consentLabel')}</span>
+        </label>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.sourceLabel')}
-            </label>
-            <select
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm bg-white"
-            >
-              <option value="">{t('auth.sourcePlaceholder')}</option>
-              <option value="university_chat">{t('auth.sourceOptions.university_chat')}</option>
-              <option value="poster">{t('auth.sourceOptions.poster')}</option>
-              <option value="dou">{t('auth.sourceOptions.dou')}</option>
-              <option value="telegram">{t('auth.sourceOptions.telegram')}</option>
-              <option value="linkedin">{t('auth.sourceOptions.linkedin')}</option>
-              <option value="friend">{t('auth.sourceOptions.friend')}</option>
-              <option value="other">{t('auth.sourceOptions.other')}</option>
-            </select>
-          </div>
-
-          <div className="pt-2">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                required
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-1 h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-              />
-              <span className="text-xs text-slate-600 leading-snug">
-                {t('auth.consentLabel')} <span className="text-red-500">*</span>
-              </span>
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-sm transition-colors mt-4"
-          >
-            {loading ? t('common.loading') : t('auth.createAccountBtn')}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button type="submit" disabled={loading} className="btn-primary btn-lg w-full">
+          {loading ? t('common.loading') : t('auth.createAccountBtn')}
+        </button>
+        <p className="mt-6 text-center text-[15px] text-ink-soft">
+          {t('auth.hasAccountPrompt')} <Link to="/signin" className="link">{t('auth.signInLink')}</Link>
+        </p>
+      </form>
+    </AuthSplit>
   );
 };

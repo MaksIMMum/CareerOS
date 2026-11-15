@@ -1,3 +1,102 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+  h1, h2, h3 {
+    @apply font-display;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2;
+  }
+}
+
+@layer components {
+  /* Buttons — every one is at least 44 px tall (touch target). */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-[18px] rounded-[10px] text-[15px] font-semibold leading-none no-underline transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-hover hover:text-white;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink border border-line-strong hover:bg-canvas;
+  }
+  .btn-dark {
+    @apply btn bg-ink text-white hover:bg-ink-2 hover:text-white;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-accent hover:bg-accent-soft;
+  }
+  .btn-danger {
+    @apply btn bg-white text-warn border border-warn-border hover:bg-warn-alert;
+  }
+  .btn-lg {
+    @apply min-h-[56px] px-7 rounded-xl font-display text-[17px] font-bold;
+  }
+  .btn-sm {
+    @apply min-h-[36px] px-3 text-sm rounded-lg;
+  }
+
+  /* Cards and text */
+  .card {
+    @apply bg-white border border-line rounded-2xl p-5 sm:p-7;
+  }
+  .eyebrow {
+    @apply font-mono text-xs font-medium uppercase tracking-[0.08em] text-ink-muted;
+  }
+  .page-title {
+    @apply font-display font-extrabold text-[32px] sm:text-[40px] leading-[1.1] tracking-[-0.03em] text-ink;
+  }
+  .section-title {
+    @apply font-display font-bold text-[22px] leading-[1.3] text-ink;
+  }
+
+  /* Form fields */
+  .field {
+    @apply w-full min-h-[52px] px-4 py-3.5 border border-line-strong rounded-[10px] bg-white text-base leading-snug text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent;
+  }
+  .field-error {
+    @apply border-warn-strong;
+  }
+  .lbl {
+    @apply block mb-2 text-sm font-semibold leading-tight text-ink;
+  }
+  .lbl-optional {
+    @apply font-normal text-ink-muted;
+  }
+  .hint {
+    @apply mt-2 text-[13px] leading-snug text-ink-muted;
+  }
+
+  /* Chips */
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-[7px] rounded-full text-sm font-medium leading-tight;
+  }
+  .chip-ok {
+    @apply chip bg-accent-chip text-accent-ink;
+  }
+  .chip-miss {
+    @apply chip bg-warn-chip text-warn;
+  }
+  .chip-kw {
+    @apply chip bg-white text-warn border border-dashed border-warn-dashed;
+  }
+  .chip-neutral {
+    @apply chip bg-[#F1F2F5] text-ink-soft;
+  }
+
+  /* Messages */
+  .alert-warn {
+    @apply flex gap-3 items-start px-4 py-3.5 rounded-[10px] bg-warn-alert border border-warn-border text-[15px] leading-normal text-warn-ink;
+  }
+  .alert-ok {
+    @apply flex gap-3 items-start px-4 py-3.5 rounded-[10px] bg-accent-wash border border-accent-chip text-[15px] leading-normal text-accent-ink;
+  }
+  .link {
+    @apply font-semibold text-accent hover:text-accent-hover;
+  }
+}
