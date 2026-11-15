@@ -10,6 +10,13 @@ export const NO_INVENT_RULE =
   'given: you may rephrase and reorder them, but never add employers, projects, technologies, ' +
   'degrees, certificates, dates or numbers that the CV does not contain.';
 
+/**
+ * Default model. gemini-2.5-flash is closed to new API keys; the Gemini 3 Flash models take
+ * 15–60 s on the free tier (over the ~30 s API Gateway limit), while 3.5 Flash-Lite answers in
+ * ~1–3 s. Override per deployment with the GEMINI_MODEL env var (set in infra/).
+ */
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
+
 export interface LlmProvider {
   /** Sends `prompt`, expects JSON back and returns it validated against `schema`. */
   generateJson<S extends z.ZodType>(prompt: string, schema: S): Promise<z.infer<S>>;
@@ -121,7 +128,7 @@ export class GeminiProvider implements LlmProvider {
   private readonly temperature: number;
 
   constructor(opts: GeminiOptions = {}) {
-    this.model = opts.model ?? 'gemini-2.5-flash';
+    this.model = opts.model ?? process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
     this.getApiKey = opts.getApiKey ?? (() => getGeminiApiKey());
     this.fetchFn = opts.fetchFn ?? fetch;
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));

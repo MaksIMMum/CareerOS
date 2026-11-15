@@ -26,6 +26,8 @@ const FRONTEND_DIST = path.join(REPO_ROOT, 'frontend', 'dist');
 const HANDLERS_DIR = path.join(REPO_ROOT, 'backend', 'src', 'handlers');
 
 export const GEMINI_KEY_PARAM = '/careeros/gemini-api-key';
+/** Gemini model used by all AI features (see backend/src/lib/llm.ts for why this one). */
+export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 export const LOCAL_DEV_ORIGIN = 'http://localhost:5173';
 
 /**
@@ -239,6 +241,7 @@ export class CareerOsStack extends cdk.Stack {
         environment: {
           TABLE_NAME: table.tableName,
           GEMINI_KEY_PARAM,
+          GEMINI_MODEL,
           NODE_OPTIONS: '--enable-source-maps',
         },
         bundling: {

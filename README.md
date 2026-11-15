@@ -90,7 +90,8 @@ Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`
 ### AI client
 
 `backend/src/lib/llm.ts` defines `LlmProvider.generateJson(prompt, schema)`. The `GeminiProvider` calls
-`gemini-2.5-flash` over REST in JSON mode, reads the key from SSM once per cold start, retries once on
+`gemini-3.5-flash-lite` (the `GEMINI_MODEL` setting in `infra/lib/careeros-stack.ts`) over REST in JSON mode,
+reads the key from SSM once per cold start, retries once on
 429/5xx, validates the answer with zod, and always sends the "do not invent experience or skills" rule as
 the system instruction. `backend/src/lib/quota.ts` takes one unit of the daily quota before every AI call.
 
@@ -147,16 +148,20 @@ cd ..
 
 ### 2. Store the Gemini key in SSM
 
+Create a free key at <https://aistudio.google.com/apikey> (the "Default Gemini Project" is fine;
+don't enable billing). Then, in a normal terminal:
+
 ```bash
-aws ssm put-parameter \
-  --name /careeros/gemini-api-key \
-  --type SecureString \
-  --value "<YOUR_GEMINI_KEY>" \
-  --region us-east-1
+npm run set-gemini-key        # uses AWS_PROFILE (default: carreros)
 ```
 
-Use `--overwrite` when rotating the key. Never put it in source code, `.env`
+It asks for the key with masked input (paste with Ctrl+Shift+V), so the key never appears on
+screen, in shell history or in Git, and saves it as an encrypted `SecureString` in
+`/careeros/gemini-api-key`. Run it again to rotate the key. Never put it in source code, `.env`
 files, or GitHub workflow YAML.
+
+The model is `gemini-3.5-flash-lite`: `gemini-2.5-flash` is closed to new keys, and the Gemini 3
+Flash models take 15–60 s on the free tier, over API Gateway's ~30 s limit.
 
 ### 3. Deploy the stack and frontend
 

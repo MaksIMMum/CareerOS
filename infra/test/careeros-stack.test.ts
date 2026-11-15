@@ -147,7 +147,12 @@ describe('CareerOsStack', () => {
       Architectures: ['arm64'],
       MemorySize: 256,
       Timeout: 29,
-      Environment: { Variables: Match.objectLike({ TABLE_NAME: Match.anyValue() }) },
+      Environment: {
+        Variables: Match.objectLike({
+          TABLE_NAME: Match.anyValue(),
+          GEMINI_MODEL: 'gemini-3.5-flash-lite',
+        }),
+      },
     });
     t.hasResourceProperties('AWS::Logs::LogGroup', { RetentionInDays: 14 });
     const policies = JSON.stringify(t.findResources('AWS::IAM::Policy'));
