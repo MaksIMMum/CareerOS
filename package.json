@@ -14,7 +14,8 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "deploy": "npm run deploy --workspace=infra"
+    "deploy": "npm run deploy --workspace=infra",
+    "set-gemini-key": "bash infra/scripts/set-gemini-key.sh"
   },
   "devDependencies": {
     "typescript": "^5.7.3"

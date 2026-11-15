@@ -12,7 +12,7 @@ CareerOS is a web app for junior IT job seekers in Ukraine: paste a vacancy, upl
 | Sign-up / sign-in | Amazon Cognito User Pool (email + password, email verification) |
 | API | API Gateway HTTP API with Cognito JWT authorizer → Lambda (Node.js 22, TypeScript) |
 | Database | DynamoDB, single table, provisioned 5 RCU / 5 WCU (inside always-free) |
-| AI | Google Gemini `gemini-2.5-flash` via REST, behind a small provider interface so it can be swapped |
+| AI | Google Gemini `gemini-3.5-flash-lite` via REST (set by `GEMINI_MODEL` in `infra/`), behind a small provider interface so it can be swapped |
 | Infra as code | AWS CDK (TypeScript) in `infra/` |
 
 ## Strict Project Rules

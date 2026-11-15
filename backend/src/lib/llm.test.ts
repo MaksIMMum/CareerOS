@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
+  DEFAULT_GEMINI_MODEL,
   extractJson,
   GeminiProvider,
   getGeminiApiKey,
@@ -44,19 +45,35 @@ describe('extractJson', () => {
 });
 
 describe('GeminiProvider', () => {
-  it('calls gemini-2.5-flash with JSON mode, the key header and the no-invent rule', async () => {
+  it('calls the default model with JSON mode, the key header and the no-invent rule', async () => {
     const { p, fetchFn } = provider(response(200, geminiBody('{"score":72,"missing":["Docker"]}')));
     const out = await p.generateJson('Compare CV and vacancy', schema);
 
     expect(out).toEqual({ score: 72, missing: ['Docker'] });
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
+    expect(DEFAULT_GEMINI_MODEL).toBe('gemini-3.5-flash-lite');
+    expect(url).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+    );
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('test-key');
     const body = JSON.parse(init.body as string);
     expect(body.generationConfig.responseMimeType).toBe('application/json');
     expect(body.systemInstruction.parts[0].text).toBe(NO_INVENT_RULE);
     expect(NO_INVENT_RULE).toMatch(/do not invent experience or skills/i);
     expect(body.contents[0].parts[0].text).toContain('JSON Schema');
+  });
+
+  it('uses the GEMINI_MODEL env var when set', async () => {
+    const prev = process.env.GEMINI_MODEL;
+    process.env.GEMINI_MODEL = 'gemini-3.8-flash';
+    try {
+      const { p, fetchFn } = provider(response(200, geminiBody('{"score":1,"missing":[]}')));
+      await p.generateJson('x', schema);
+      expect((fetchFn.mock.calls[0] as unknown as [string])[0]).toContain('/models/gemini-3.8-flash:');
+    } finally {
+      if (prev === undefined) delete process.env.GEMINI_MODEL;
+      else process.env.GEMINI_MODEL = prev;
+    }
   });
 
   it('retries once on 429 and then succeeds', async () => {
