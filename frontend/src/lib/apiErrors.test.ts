@@ -8,9 +8,9 @@ describe('apiErrorMessage', () => {
     const err = new ApiError('quota_exceeded', 429, 'quota_exceeded', { kind: 'interview', limit: 5 });
     await i18n.changeLanguage('en');
     expect(apiErrorMessage(err, i18n.t)).toContain('5');
-    expect(apiErrorMessage(err, i18n.t)).toMatch(/mock interviews/);
+    expect(apiErrorMessage(err, i18n.t)).toMatch(/all 5 interviews/);
     await i18n.changeLanguage('uk');
-    expect(apiErrorMessage(err, i18n.t)).toMatch(/мок-інтерв/);
+    expect(apiErrorMessage(err, i18n.t)).toMatch(/5 співбесід/);
   });
 
   it('maps validation, limit and network errors', async () => {

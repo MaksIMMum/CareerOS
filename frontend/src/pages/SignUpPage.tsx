@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { setSourceAnswer } from '../lib/source.js';
 import { authErrorKey } from '../lib/authErrors.js';
+import { AuthSplit, SignUpAside } from '../components/AuthLayout.js';
+import { ErrorAlert, Icon, PasswordChecklist, PasswordInput, useCountUp } from '../components/ui.js';
 
 export const SignUpPage: React.FC = () => {
   const { t } = useTranslation();
@@ -17,6 +19,7 @@ export const SignUpPage: React.FC = () => {
   const [source, setSource] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const score = useCountUp(52, 79);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,102 +64,84 @@ export const SignUpPage: React.FC = () => {
     }
   };
 
+  const sources = ['university_chat', 'poster', 'dou', 'telegram', 'linkedin', 'friend', 'other'] as const;
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+
   return (
-    <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            {t('auth.signUpTitle')}
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            {t('auth.hasAccountPrompt')}{' '}
-            <Link to="/signin" className="font-semibold text-blue-600 hover:text-blue-500">
-              {t('auth.signInLink')}
-            </Link>
-          </p>
+    <AuthSplit aside={<SignUpAside score={score} />}>
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-center gap-3 mb-7">
+          <div className="flex-1 flex gap-1.5" aria-hidden="true">
+            <span className="flex-1 h-1.5 rounded-full bg-accent" />
+            <span className="flex-1 h-1.5 rounded-full bg-line-strong" />
+            <span className="flex-1 h-1.5 rounded-full bg-line-strong" />
+          </div>
+          <span className="font-mono text-[13px] font-semibold text-ink-soft">{t('auth.stepOf', { n: 1 })}</span>
+        </div>
+        <h1 className="mb-2.5 font-display font-extrabold text-[34px] sm:text-[42px] leading-[1.05] tracking-[-0.035em]">
+          {t('auth.signUpTitleA')}
+          <br />
+          {t('auth.signUpTitleB')}
+        </h1>
+        <p className="mb-8 text-[17px] text-ink-soft">{t('auth.signUpLead')}</p>
+
+        {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
+
+        <div className="mb-5">
+          <label className="lbl" htmlFor="email">{t('auth.emailLabel')}</label>
+          <div className="relative">
+            <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('auth.emailPlaceholder')} className={`field pr-12 ${emailOk ? 'border-accent-border' : ''}`} />
+            {emailOk && (
+              <span aria-hidden="true" className="absolute right-3.5 top-[15px] w-6 h-6 rounded-full bg-accent-chip text-accent-ink flex items-center justify-center">
+                <Icon.check className="w-3.5 h-3.5" />
+              </span>
+            )}
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
-            {error}
-          </div>
-        )}
+        <div className="mb-5">
+          <label className="lbl" htmlFor="password">{t('auth.passwordLabel')}</label>
+          <PasswordInput id="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordChecklist password={password} />
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.emailLabel')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('auth.emailPlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-            />
+        <fieldset className="mb-6 border-0 p-0 m-0 min-w-0">
+          <legend className="lbl p-0">
+            {t('auth.sourceLabel')} <span className="lbl-optional">{t('common.optional')}</span>
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {sources.map((s) => {
+              const on = source === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setSource(on ? '' : s)}
+                  className={`min-h-[44px] px-4 rounded-full border-[1.5px] text-sm font-semibold ${on ? 'bg-ink border-ink text-white' : 'bg-white border-line-strong text-ink-2 hover:bg-canvas'}`}
+                >
+                  {t(`auth.sourceOptions.${s}`)}
+                </button>
+              );
+            })}
           </div>
+        </fieldset>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.passwordLabel')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('auth.passwordPlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-            />
-            <p className="mt-1 text-xs text-slate-500">{t('auth.passwordHint')}</p>
-          </div>
+        <label className={`flex gap-3 items-start p-4 mb-5 border-[1.5px] rounded-[14px] cursor-pointer ${consent ? 'border-accent bg-accent-wash' : 'border-line-strong bg-white'}`}>
+          <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} className="shrink-0 w-[22px] h-[22px] mt-px accent-accent" />
+          <span className="text-sm leading-normal text-ink-2">{t('auth.consentLabel')}</span>
+        </label>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.sourceLabel')}
-            </label>
-            <select
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm bg-white"
-            >
-              <option value="">{t('auth.sourcePlaceholder')}</option>
-              <option value="university_chat">{t('auth.sourceOptions.university_chat')}</option>
-              <option value="poster">{t('auth.sourceOptions.poster')}</option>
-              <option value="dou">{t('auth.sourceOptions.dou')}</option>
-              <option value="telegram">{t('auth.sourceOptions.telegram')}</option>
-              <option value="linkedin">{t('auth.sourceOptions.linkedin')}</option>
-              <option value="friend">{t('auth.sourceOptions.friend')}</option>
-              <option value="other">{t('auth.sourceOptions.other')}</option>
-            </select>
-          </div>
+        <button type="submit" disabled={loading || !consent} className="btn-primary btn-lg w-full">
+          {loading ? t('common.loading') : t('auth.createAccountBtn')}
+          {!loading && <Icon.arrowRight className="w-[18px] h-[18px]" />}
+        </button>
+        {!consent && <p className="mt-2.5 text-center text-[13px] text-ink-muted">{t('auth.consentNeeded')}</p>}
 
-          <div className="pt-2">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                required
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-1 h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-              />
-              <span className="text-xs text-slate-600 leading-snug">
-                {t('auth.consentLabel')} <span className="text-red-500">*</span>
-              </span>
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-sm transition-colors mt-4"
-          >
-            {loading ? t('common.loading') : t('auth.createAccountBtn')}
-          </button>
-        </form>
-      </div>
-    </div>
+        <p className="mt-6 text-center text-[15px] text-ink-soft">
+          {t('auth.hasAccountPrompt')} <Link to="/signin" className="link font-bold">{t('auth.signInLink')}</Link>
+        </p>
+      </form>
+    </AuthSplit>
   );
 };

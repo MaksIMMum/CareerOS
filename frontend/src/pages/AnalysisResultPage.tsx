@@ -5,52 +5,18 @@ import { createCv, getAnalysis, shareAnalysis, type Analysis } from '../lib/api.
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { activeFlags, highlight } from '../lib/flagged.js';
 import { LIMITS } from '../lib/limits.js';
+import { ErrorAlert, Icon, OkAlert, Rings, ScoreRing } from '../components/ui.js';
 
-export const scoreColor = (s: number) =>
-  s >= 75 ? 'text-emerald-600' : s >= 50 ? 'text-amber-500' : 'text-red-500';
-const ringColor = (s: number) => (s >= 75 ? '#059669' : s >= 50 ? '#f59e0b' : '#ef4444');
-
-export const ScoreRing: React.FC<{ score: number; label: string; size?: number }> = ({ score, label, size = 132 }) => {
-  const r = 52;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" aria-hidden="true">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
-        <circle cx="60" cy="60" r={r} fill="none" stroke={ringColor(score)} strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - score / 100)} />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`text-4xl font-extrabold ${scoreColor(score)}`}>{score}</span>
-        <span className="text-xs text-slate-500">{label}</span>
-      </div>
-    </div>
-  );
-};
-
-const Chips: React.FC<{ items: string[]; tone: 'green' | 'amber' | 'slate'; empty: string }> = ({ items, tone, empty }) => {
-  const cls = {
-    green: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    amber: 'bg-amber-50 text-amber-900 border-amber-200',
-    slate: 'bg-slate-100 text-slate-700 border-slate-200',
-  }[tone];
-  if (items.length === 0) return <p className="text-sm text-slate-500">{empty}</p>;
-  return (
+const Chips: React.FC<{ items: string[]; cls: string; empty: string }> = ({ items, cls, empty }) =>
+  items.length === 0 ? (
+    <p className="text-[15px] text-ink-muted">{empty}</p>
+  ) : (
     <div className="flex flex-wrap gap-2">
       {items.map((s) => (
-        <span key={s} className={`px-2.5 py-1 text-xs font-medium rounded-full border ${cls}`}>
-          {s}
-        </span>
+        <span key={s} className={cls}>{s}</span>
       ))}
     </div>
   );
-};
-
-const Card: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <section className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
-    <h2 className="text-base font-semibold text-slate-900 mb-3">{title}</h2>
-    {children}
-  </section>
-);
 
 export const AnalysisResultPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -62,8 +28,9 @@ export const AnalysisResultPage: React.FC = () => {
   const [improved, setImproved] = useState(fromState?.id === id ? fromState.result.improvedCv : '');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<null | 'cv' | 'link'>(null);
   const [busy, setBusy] = useState<null | 'saving' | 'sharing'>(null);
+  const [bullet, setBullet] = useState(0);
   const [share, setShare] = useState<{ shareId: string; scores: { before: number; after: number } } | null>(null);
 
   useEffect(() => {
@@ -85,8 +52,11 @@ export const AnalysisResultPage: React.FC = () => {
 
   if (!analysis) {
     return (
-      <div className="flex-1 max-w-4xl w-full mx-auto px-4 py-10">
-        {error ? <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{error}</div> : <p className="text-sm text-slate-500">{t('analysis.loading')}</p>}
+      <div className="flex-1">
+        <div className="bg-accent h-40" />
+        <main className="max-w-[1240px] w-full mx-auto -mt-24 px-4 sm:px-6 pb-10">
+          <div className="card shadow-lift">{error ? <ErrorAlert>{error}</ErrorAlert> : <p className="text-sm text-ink-muted">{t('analysis.loading')}</p>}</div>
+        </main>
       </div>
     );
   }
@@ -95,11 +65,11 @@ export const AnalysisResultPage: React.FC = () => {
   const shareUrl = share ? `${window.location.origin}/s/${share.shareId}` : '';
   const shareText = share ? t('analysis.shareText', { title: analysis.vacancyTitle, before: share.scores.before, after: share.scores.after }) : '';
 
-  const copy = async () => {
+  const copyText = async (text: string, what: 'cv' | 'link') => {
     try {
-      await navigator.clipboard.writeText(improved);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
+      window.setTimeout(() => setCopied(null), 2000);
     } catch {
       setError(t('errors.generic'));
     }
@@ -133,141 +103,227 @@ export const AnalysisResultPage: React.FC = () => {
   };
 
   const date = new Date(analysis.createdAt).toLocaleDateString(i18n.language === 'en' ? 'en-GB' : 'uk-UA', { day: 'numeric', month: 'short', year: 'numeric' });
-  const btn = 'px-4 py-2.5 text-sm font-semibold rounded-xl border transition-colors disabled:opacity-50';
+
+  const wb = r.weakBullets[Math.min(bullet, r.weakBullets.length - 1)];
+  const onBlueBtn = 'btn bg-transparent text-white border-[1.5px] border-white/50 rounded-xl hover:bg-white/10 hover:text-white';
 
   return (
-    <div className="flex-1 max-w-4xl w-full mx-auto px-4 py-6 sm:py-10 space-y-5">
-      <Link to="/app/analyses" className="text-sm text-blue-600 hover:text-blue-700">← {t('analysis.history')}</Link>
-
-      {/* Header with the big score */}
-      <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-7 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-6">
-        <ScoreRing score={r.matchScore} label={t('analysis.score')} />
-        <div className="min-w-0 text-center sm:text-left">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('analysis.resultTitle')}</p>
-          <h1 className="mt-1 text-xl sm:text-2xl font-bold text-slate-900 break-words">
-            {analysis.vacancyTitle}
-            {analysis.company && <span className="text-slate-500 font-medium"> · {analysis.company}</span>}
-          </h1>
-          <p className="mt-1 text-xs text-slate-500">{t('analysis.cvUsed', { name: analysis.cvName })} · {date}</p>
-          <p className="mt-3 text-sm text-slate-700 leading-relaxed">{r.summary}</p>
+    <div className="flex-1">
+      {/* Blue header: score, title, summary, actions */}
+      <div className="bg-accent text-white relative overflow-hidden">
+        <div aria-hidden="true" className="absolute w-[360px] h-[360px] rounded-full bg-sun opacity-[0.18] -right-[100px] -bottom-[180px]" />
+        <Rings className="hidden sm:block w-[420px] h-[420px] -left-[160px] -top-[200px]" />
+        <div className="relative max-w-[1240px] mx-auto px-4 sm:px-6 pt-5 pb-12 sm:pb-14">
+          <Link to="/app/analyses" className="inline-flex items-center gap-1.5 min-h-[44px] mb-3 text-[15px] text-accent-on no-underline hover:text-white">
+            <Icon.arrowLeft className="w-4 h-4" /> {t('analysis.history')}
+          </Link>
+          <div className="flex flex-wrap gap-8 sm:gap-10 items-center">
+            <div className="flex items-center gap-[22px] mx-auto sm:mx-0">
+              <ScoreRing score={r.matchScore} size={168} onBlue />
+              {share && (
+                <div className="px-[18px] py-4 rounded-[18px] bg-sun text-ink text-center rotate-3">
+                  <p className="mb-1 text-xs font-semibold">{t('analysis.improvedScore')}</p>
+                  <p className="font-mono font-bold text-[38px] leading-none">{share.scores.after}</p>
+                  {share.scores.after !== share.scores.before && (
+                    <p className="mt-1 font-mono font-bold text-xs">
+                      {share.scores.after > share.scores.before ? '+' : ''}
+                      {share.scores.after - share.scores.before}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex-[1_1_440px] min-w-0">
+              <p className="mb-2.5 font-mono text-[13px] text-accent-on break-words">
+                {analysis.cvName}
+                {analysis.company ? ` → ${analysis.company}` : ''} · {date}
+              </p>
+              <h1 className="mb-3 font-display font-extrabold text-[28px] sm:text-[40px] leading-[1.08] tracking-[-0.03em] break-words">{analysis.vacancyTitle}</h1>
+              <p className="mb-6 text-base sm:text-lg leading-[1.55] text-accent-on max-w-[620px]">{r.summary}</p>
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
+                <button type="button" onClick={() => void saveAsCv()} disabled={busy !== null || improved.trim() === ''} className="btn-primary min-h-[52px] px-[22px] text-base">
+                  <Icon.plus className="w-4 h-4" /> {busy === 'saving' ? t('cvs.saving') : t('analysis.saveAsCv')}
+                </button>
+                {!share && (
+                  <button type="button" onClick={() => void doShare()} disabled={busy !== null} className={`${onBlueBtn} min-h-[52px]`}>
+                    <Icon.share className="w-4 h-4" /> {busy === 'sharing' ? t('analysis.sharing') : t('analysis.share')}
+                  </button>
+                )}
+                <button type="button" disabled title={t('common.soon')} className={`${onBlueBtn} min-h-[52px]`}>
+                  {t('analysis.addToTracker')} <span className="font-mono text-[11px] uppercase text-accent-on">{t('common.soon')}</span>
+                </button>
+                <button type="button" disabled title={t('common.soon')} className={`${onBlueBtn} min-h-[52px]`}>
+                  {t('analysis.practise')} <span className="font-mono text-[11px] uppercase text-accent-on">{t('common.soon')}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
-
-      {error && <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{error}</div>}
-      {notice && <div role="status" className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl">{notice}</div>}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <Card title={`✅ ${t('analysis.matched')}`}>
-          <Chips items={r.matchedSkills} tone="green" empty={t('analysis.none')} />
-        </Card>
-        <Card title={`🔑 ${t('analysis.keywords')}`}>
-          <Chips items={r.missingKeywords} tone="slate" empty={t('analysis.none')} />
-        </Card>
       </div>
 
-      <Card title={`🎯 ${t('analysis.missing')}`}>
-        {r.missingSkills.length === 0 ? (
-          <p className="text-sm text-slate-500">{t('analysis.none')}</p>
-        ) : (
-          <ul className="space-y-3">
-            {r.missingSkills.map((m) => (
-              <li key={m.skill} className="flex flex-col sm:flex-row gap-1 sm:gap-3">
-                <span className="self-start px-2.5 py-1 text-xs font-semibold rounded-full border bg-amber-50 text-amber-900 border-amber-200 shrink-0">{m.skill}</span>
-                <span className="text-sm text-slate-700">{m.advice}</span>
-              </li>
-            ))}
-          </ul>
+      <main className="max-w-[1240px] mx-auto px-4 sm:px-6 py-8 pb-16">
+        {error && <ErrorAlert className="mb-6">{error}</ErrorAlert>}
+        {notice && (
+          <OkAlert className="mb-6">
+            {notice}{' '}
+            <Link to="/app/cvs" className="font-semibold underline text-accent-ink">{t('nav.cvs')} →</Link>
+          </OkAlert>
         )}
-      </Card>
 
-      {r.weakBullets.length > 0 && (
-        <Card title={`✍️ ${t('analysis.weakBullets')}`}>
-          <ul className="space-y-4">
-            {r.weakBullets.map((b, i) => (
-              <li key={i} className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div className="p-3 rounded-xl bg-red-50/60 border border-red-100">
-                  <p className="text-[11px] font-semibold uppercase text-red-700 mb-1">{t('analysis.before')}</p>
-                  <p className="text-sm text-slate-700">{b.original}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
-                  <p className="text-[11px] font-semibold uppercase text-emerald-700 mb-1">{t('analysis.after')}</p>
-                  <p className="text-sm text-slate-800">{b.rewritten}</p>
-                </div>
-                <p className="md:col-span-2 text-xs text-slate-500">💡 {b.why}</p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+        {/* Share link */}
+        {share && (
+          <section className="mb-6 rounded-3xl bg-night text-white p-6 sm:p-8">
+            <div className="flex flex-wrap items-baseline justify-between gap-3 mb-2">
+              <h2 className="font-display font-extrabold text-[22px] sm:text-[26px] leading-tight">{t('analysis.shareTitle')}</h2>
+              <p className="font-mono font-bold text-2xl">
+                <span className="text-ink-faint">{share.scores.before}</span>
+                <span className="text-ink-faint mx-2">→</span>
+                <span className="text-sun">{share.scores.after}</span>
+              </p>
+            </div>
+            <p className="mb-5 text-[15px] text-night-text">{t('analysis.shareHint')}</p>
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <input readOnly value={shareUrl} onFocus={(e) => e.target.select()} aria-label={t('analysis.shareTitle')} className="field flex-1 min-w-0 font-mono text-sm" />
+              <button type="button" onClick={() => void copyText(shareUrl, 'link')} className="btn-primary min-h-[54px]">
+                <Icon.copy className="w-4 h-4" /> {copied === 'link' ? t('analysis.copied') : t('analysis.copyLink')}
+              </button>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              <a href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className={onBlueBtn}>
+                {t('analysis.shareTelegram')}
+              </a>
+              <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer" className={onBlueBtn}>
+                {t('analysis.shareLinkedIn')}
+              </a>
+            </div>
+          </section>
+        )}
 
-      {/* Improved CV + post-check */}
-      <Card title={`📄 ${t('analysis.improvedCv')}`}>
-        {flags.length > 0 ? (
-          <div role="alert" className="mb-3 p-3 rounded-xl bg-amber-50 border border-amber-300 text-sm text-amber-900">
-            <p className="font-semibold">⚠️ {t('analysis.flaggedTitle')}</p>
-            <p className="mt-1">{t('analysis.flaggedText', { terms: flags.join(', ') })}</p>
-          </div>
-        ) : (
-          <p className="mb-3 text-xs text-emerald-700">🛡️ {t('analysis.noFlags')}</p>
-        )}
-        <p className="mb-2 text-xs text-slate-500">{t('analysis.improvedHint')}</p>
-        <textarea value={improved} onChange={(e) => setImproved(e.target.value)} rows={16} className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-[13px] leading-relaxed" />
-        {flags.length > 0 && (
-          <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-[13px] leading-relaxed whitespace-pre-wrap max-h-64 overflow-auto">
-            {highlight(improved, flags).map((seg, i) =>
-              seg.flagged ? <mark key={i} className="bg-amber-200 rounded px-0.5">{seg.text}</mark> : <span key={i}>{seg.text}</span>,
-            )}
-          </div>
-        )}
-        <div className="mt-3 flex flex-col sm:flex-row flex-wrap gap-2">
-          <button onClick={copy} className={`${btn} border-slate-300 text-slate-800 hover:bg-slate-50`}>
-            📋 {copied ? t('analysis.copied') : t('analysis.copy')}
-          </button>
-          <button onClick={saveAsCv} disabled={busy !== null || improved.trim() === ''} className={`${btn} border-blue-600 bg-blue-600 text-white hover:bg-blue-700`}>
-            💾 {t('analysis.saveAsCv')}
-          </button>
+        {/* Skills */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] gap-6 mb-6">
+          <section className="card">
+            <div className="flex justify-between items-center mb-4">
+              <p className="eyebrow">{t('analysis.matchedTitle')}</p>
+              <span className="font-mono font-bold text-[22px] text-accent-ink">{r.matchedSkills.length}</span>
+            </div>
+            <Chips items={r.matchedSkills} cls="chip-ok" empty={t('analysis.none')} />
+          </section>
+          <section className="card">
+            <div className="flex justify-between items-center mb-4">
+              <p className="eyebrow">{t('analysis.missingTitle')}</p>
+              <span className="font-mono font-bold text-[22px] text-warn">{r.missingSkills.length}</span>
+            </div>
+            <div className="mb-4">
+              <Chips items={r.missingSkills.map((m) => m.skill)} cls="chip-miss" empty={t('analysis.none')} />
+            </div>
+            <p className="mb-2.5 text-[13px] font-semibold text-ink-muted">{t('analysis.keywords')}</p>
+            <Chips items={r.missingKeywords} cls="chip-kw" empty={t('analysis.none')} />
+          </section>
         </div>
-      </Card>
 
-      {/* Next steps */}
-      <section className="flex flex-col sm:flex-row flex-wrap gap-2">
-        <button disabled title={t('analysis.soon')} className={`${btn} border-slate-200 text-slate-500 bg-white cursor-not-allowed`}>
-          📊 {t('analysis.addToTracker')} <span className="text-[10px] uppercase ml-1">({t('analysis.soon')})</span>
-        </button>
-        <button disabled title={t('analysis.soon')} className={`${btn} border-slate-200 text-slate-500 bg-white cursor-not-allowed`}>
-          💬 {t('analysis.practise')} <span className="text-[10px] uppercase ml-1">({t('analysis.soon')})</span>
-        </button>
-        {!share && (
-          <button onClick={doShare} disabled={busy !== null} className={`${btn} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}>
-            🔗 {busy === 'sharing' ? t('analysis.sharing') : t('analysis.share')}
-          </button>
+        {/* How to close the gaps */}
+        {r.missingSkills.length > 0 && (
+          <section className="mb-6 rounded-3xl bg-sun-wash p-6 sm:p-8">
+            <h2 className="section-title mb-1.5">{t('analysis.gapsTitle')}</h2>
+            <p className="mb-[22px] text-sun-deep">{t('analysis.gapsLead')}</p>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-4">
+              {r.missingSkills.map((m) => (
+                <div key={m.skill} className="p-[22px] rounded-[18px] bg-white">
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <span className="w-9 h-9 rounded-[10px] bg-ink text-sun flex items-center justify-center shrink-0">
+                      <Icon.check className="w-[18px] h-[18px]" />
+                    </span>
+                    <p className="font-display font-extrabold text-[17px] leading-snug">{m.skill}</p>
+                  </div>
+                  <p className="text-[15px] leading-normal text-ink-soft">{m.advice}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
-      </section>
 
-      {share && (
-        <Card title={`🔗 ${t('analysis.shareTitle')}`}>
-          <p className="text-3xl font-extrabold text-slate-900">
-            <span className={scoreColor(share.scores.before)}>{share.scores.before}</span>
-            <span className="text-slate-400 mx-2">→</span>
-            <span className={scoreColor(share.scores.after)}>{share.scores.after}</span>
-          </p>
-          <p className="mt-1 text-xs text-slate-500">{t('analysis.shareHint')}</p>
-          <div className="mt-3 flex flex-col sm:flex-row gap-2">
-            <input readOnly value={shareUrl} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50" />
-            <button onClick={() => void navigator.clipboard.writeText(shareUrl)} className={`${btn} border-slate-300 text-slate-800 hover:bg-slate-50`}>
-              📋 {t('analysis.copy')}
-            </button>
+        {/* Stronger wording: one bullet at a time */}
+        {wb && (
+          <section className="card mb-6">
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
+              <h2 className="section-title">{t('analysis.weakBullets')}</h2>
+              {r.weakBullets.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <button type="button" aria-label={t('analysis.bulletPrev')} onClick={() => setBullet((b) => (b - 1 + r.weakBullets.length) % r.weakBullets.length)} className="w-11 h-11 rounded-xl border-[1.5px] border-line-strong bg-white hover:bg-canvas flex items-center justify-center">
+                    <Icon.arrowLeft className="w-[18px] h-[18px]" />
+                  </button>
+                  <span className="font-mono font-semibold text-sm min-w-[48px] text-center" aria-live="polite">
+                    {Math.min(bullet, r.weakBullets.length - 1) + 1} / {r.weakBullets.length}
+                  </span>
+                  <button type="button" aria-label={t('analysis.bulletNext')} onClick={() => setBullet((b) => (b + 1) % r.weakBullets.length)} className="w-11 h-11 rounded-xl border-[1.5px] border-line-strong bg-white hover:bg-canvas flex items-center justify-center">
+                    <Icon.arrowRight className="w-[18px] h-[18px]" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4 items-stretch">
+              <div className="p-6 rounded-[18px] bg-canvas">
+                <p className="eyebrow mb-3">{t('analysis.before')}</p>
+                <p className="text-base sm:text-lg leading-[1.55] text-ink-muted">«{wb.original}»</p>
+              </div>
+              <div className="p-6 rounded-[18px] bg-night text-white">
+                <p className="eyebrow mb-3 text-sun">{t('analysis.after')}</p>
+                <p className="mb-3.5 text-base sm:text-lg leading-[1.55]">«{wb.rewritten}»</p>
+                <p className="text-sm text-night-muted">{t('analysis.why', { why: wb.why })}</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Improved CV + post-check */}
+        <section className="card">
+          <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+            <h2 className="section-title">{t('analysis.improvedCv')}</h2>
+            <div className="flex flex-wrap gap-2.5">
+              <button type="button" onClick={() => void copyText(improved, 'cv')} className="btn-outline">
+                <Icon.copy className="w-4 h-4" /> {copied === 'cv' ? t('analysis.copied') : t('analysis.copy')}
+              </button>
+              <button type="button" onClick={() => void saveAsCv()} disabled={busy !== null || improved.trim() === ''} className="btn-accent">
+                {busy === 'saving' ? t('cvs.saving') : t('analysis.saveAsCv')}
+              </button>
+            </div>
           </div>
-          <div className="mt-3 flex gap-2">
-            <a href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className={`${btn} border-sky-500 text-sky-700 hover:bg-sky-50`}>
-              ✈️ {t('analysis.shareTelegram')}
-            </a>
-            <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer" className={`${btn} border-blue-700 text-blue-800 hover:bg-blue-50`}>
-              in {t('analysis.shareLinkedIn')}
-            </a>
-          </div>
-        </Card>
-      )}
+
+          {flags.length > 0 ? (
+            <div role="alert" className="alert-warn mb-4 rounded-[14px]">
+              <Icon.warn className="w-5 h-5 shrink-0 mt-px" />
+              <p>
+                <strong>{t('analysis.flaggedTitle')}</strong> {t('analysis.flaggedText', { terms: flags.map((f) => `«${f}»`).join(', ') })}
+              </p>
+            </div>
+          ) : (
+            <div className="alert-ok mb-4 rounded-[14px]">
+              <Icon.shield className="w-5 h-5 shrink-0 mt-px" />
+              <p>{t('analysis.noFlags')}</p>
+            </div>
+          )}
+
+          <label htmlFor="improved" className="block mb-2 text-sm text-ink-muted">{t('analysis.improvedHint')}</label>
+          <textarea
+            id="improved"
+            value={improved}
+            onChange={(e) => setImproved(e.target.value)}
+            rows={16}
+            className="w-full p-5 sm:p-6 rounded-2xl bg-canvas border-[1.5px] border-transparent font-mono text-[14px] sm:text-[15px] leading-[1.7] text-ink-2 resize-y focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent-ring"
+          />
+          {flags.length > 0 && (
+            <div className="mt-3 p-5 rounded-2xl bg-white border border-warn-line font-mono text-[13px] leading-relaxed whitespace-pre-wrap max-h-72 overflow-auto text-ink-2">
+              {highlight(improved, flags).map((seg, i) =>
+                seg.flagged ? (
+                  <mark key={i} className="bg-warn-chip text-warn rounded px-0.5">{seg.text}</mark>
+                ) : (
+                  <span key={i}>{seg.text}</span>
+                ),
+              )}
+            </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 };

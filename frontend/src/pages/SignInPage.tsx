@@ -4,6 +4,8 @@ import { signIn } from 'aws-amplify/auth';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { authErrorKey } from '../lib/authErrors.js';
+import { AuthSplit, SignInAside } from '../components/AuthLayout.js';
+import { ErrorAlert, Icon, OkAlert, PasswordInput } from '../components/ui.js';
 
 export const SignInPage: React.FC = () => {
   const { t } = useTranslation();
@@ -15,6 +17,7 @@ export const SignInPage: React.FC = () => {
   const [email, setEmail] = useState(searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [badCredentials, setBadCredentials] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const isConfirmed = searchParams.get('confirmed') === 'true';
@@ -30,6 +33,7 @@ export const SignInPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setBadCredentials(false);
 
     if (!isConfigured) {
       setError(t('auth.errors.notConfigured'));
@@ -58,6 +62,7 @@ export const SignInPage: React.FC = () => {
         await finishSignIn();
       } else if (err.name === 'UserNotFoundException' || err.name === 'NotAuthorizedException') {
         setError(t('auth.errors.incorrectPassword'));
+        setBadCredentials(true);
       } else if (err.name === 'UserNotConfirmedException') {
         navigate(`/confirm?email=${encodeURIComponent(email.trim())}`);
       } else {
@@ -72,79 +77,62 @@ export const SignInPage: React.FC = () => {
     return <Navigate to={from} replace />;
   }
 
+  const hour = new Date().getHours();
+  const greeting = t(`auth.greeting.${hour < 12 ? 'morning' : hour < 18 ? 'day' : 'evening'}`);
+
   return (
-    <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            {t('auth.signInTitle')}
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            {t('auth.noAccountPrompt')}{' '}
-            <Link to="/signup" className="font-semibold text-blue-600 hover:text-blue-500">
-              {t('auth.signUpLink')}
-            </Link>
-          </p>
+    <AuthSplit aside={<SignInAside />}>
+      <form onSubmit={handleSubmit}>
+        <p className="mb-4 inline-flex items-center gap-2 px-3 py-[7px] rounded-full bg-sun-wash text-sun-badge text-[13px] font-semibold leading-none">
+          <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden="true">
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          {greeting}
+        </p>
+        <h1 className="mb-2.5 font-display font-extrabold text-[36px] sm:text-[44px] leading-[1.05] tracking-[-0.035em]">{t('auth.signInTitle')}</h1>
+        <p className="mb-7 text-[17px] text-ink-soft">{t('auth.signInLead')}</p>
+
+        {(isConfirmed || isReset) && !error && (
+          <OkAlert className="mb-6">{isReset ? t('auth.resetSuccess') : t('auth.confirmedNotice')}</OkAlert>
+        )}
+        {error && (
+          <ErrorAlert className="mb-6">
+            {error}
+            {badCredentials && (
+              <>
+                {' '}
+                <Link to="/forgot-password" className="font-bold text-warn-ink underline">{t('auth.forgotPasswordLink')}</Link>
+              </>
+            )}
+          </ErrorAlert>
+        )}
+
+        <div className="mb-5">
+          <label className="lbl" htmlFor="email">{t('auth.emailLabel')}</label>
+          <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('auth.emailPlaceholder')} className="field" />
+        </div>
+        <div className="mb-7">
+          <div className="flex justify-between items-baseline gap-3">
+            <label className="lbl" htmlFor="password">{t('auth.passwordLabel')}</label>
+            <Link to="/forgot-password" className="text-sm link">{t('auth.forgotPasswordLink')}</Link>
+          </div>
+          <PasswordInput id="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} invalid={badCredentials} />
         </div>
 
-        {(isConfirmed || isReset) && (
-          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg">
-            {isReset ? t('auth.resetSuccess') : t('auth.confirmedNotice')}
-          </div>
-        )}
+        <button type="submit" disabled={loading} className="btn-primary btn-lg w-full">
+          {loading ? t('common.loading') : t('auth.signInBtn')}
+          {!loading && <Icon.arrowRight className="w-[18px] h-[18px]" />}
+        </button>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('auth.emailLabel')}
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('auth.emailPlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-slate-700">
-                {t('auth.passwordLabel')}
-              </label>
-              <Link
-                to="/forgot-password"
-                className="text-xs font-medium text-blue-600 hover:text-blue-500"
-              >
-                {t('auth.forgotPasswordLink')}
-              </Link>
-            </div>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('auth.passwordPlaceholder')}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-sm transition-colors mt-2"
-          >
-            {loading ? t('common.loading') : t('auth.signInBtn')}
-          </button>
-        </form>
-      </div>
-    </div>
+        <div className="flex items-center gap-3.5 my-7 text-[13px] text-ink-muted">
+          <span className="flex-1 h-px bg-line" />
+          {t('auth.firstTime')}
+          <span className="flex-1 h-px bg-line" />
+        </div>
+        <Link to="/signup" className="btn-outline w-full min-h-[54px] rounded-[14px] text-base">
+          {t('auth.createFreeAccount')}
+        </Link>
+      </form>
+    </AuthSplit>
   );
 };
