@@ -62,8 +62,10 @@ The API builds every key from the caller's JWT, so a user can only ever touch th
 | Profile | `USER#<sub>` | `PROFILE` | `email`, `createdAt`, `source` (sign-up answer), `src` (`?src=` tag), `lang` |
 | CV version | `USER#<sub>` | `CV#<id>` | `id`, `name` (e.g. "Backend CV"), `text` (≤ 15,000 chars), `createdAt`, `updatedAt` |
 | Vacancy | `USER#<sub>` | `VACANCY#<id>` | `id`, `title`, `company`, `url`, `text` (≤ 10,000 chars), `createdAt`, `updatedAt` |
-| Daily AI quota | `USER#<sub>` | `QUOTA#<yyyy-mm-dd>` | `analyses` (≤ 10/day), `interviews` (≤ 5/day), `ttl` (auto-deleted after 3 days) |
-| Analysis | `USER#<sub>` | `ANALYSIS#<id>` | defined in Step 5 |
+| Daily AI quota | `USER#<sub>` | `QUOTA#<yyyy-mm-dd>` | `analyses` (≤ 10/day), `interviews` (≤ 5/day), `shares` (≤ 10/day), `ttl` (auto-deleted after 3 days) |
+| Analysis (summary) | `USER#<sub>` | `ANALYSIS#<uuidv7>` | `cvId`, `cvName`, `vacancyId`, `vacancyTitle`, `company`, `lang`, `matchScore`, `flaggedCount`, `createdAt`, `shareId?`, `shareScores?` |
+| Analysis (detail) | `USER#<sub>` | `ANALYSISDETAIL#<uuidv7>` | `data` = brotli-compressed JSON: full AI result, post-check flags, CV + vacancy snapshot |
+| Public share card | `SHARE#<shareId>` | `SHARE` | `jobTitle`, `scoreBefore`, `scoreAfter`, `createdAt` (+ `ownerSub`, `analysisId`, never returned) |
 | Mock interview | `USER#<sub>` | `INTERVIEW#<id>` | defined in Step 7 |
 | Application | `USER#<sub>` | `APP#<id>` | defined in Step 6 |
 | Event | `EVENT#<yyyy-mm-dd>` | `<iso time>#<sub>#<type>` | `type` (e.g. `SIGNUP`), `payload`; `GSI1PK=USER#<sub>`, `GSI1SK=<iso time>` |
@@ -82,10 +84,14 @@ All routes except `/health` require `Authorization: Bearer <Cognito ID token>`; 
 | `GET /cvs/{id}`, `PUT /cvs/{id}`, `DELETE /cvs/{id}` | Read / replace / delete one CV |
 | `GET /vacancies`, `POST /vacancies` | List / create `{ title, company?, url?, text }` |
 | `GET /vacancies/{id}`, `PUT /vacancies/{id}`, `DELETE /vacancies/{id}` | Read / replace / delete one vacancy |
+| `POST /analyses` | `{ cvId, vacancyId \| vacancy, lang }` → AI analysis (uses 1 of 10 daily analyses) |
+| `GET /analyses`, `GET /analyses/{id}` | History (50 newest, summaries) / full result |
+| `POST /analyses/{id}/share` | Re-scores CV before → after once and creates a public card (1 of 10 daily shares) |
+| `GET /public/shares/{shareId}` | **Public**: job title + score before → after only (no CV text) |
 
 Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`), `unauthorized` (401),
-`not_found` (404), `limit_reached` (409), `payload_too_large` (413), and `quota_exceeded` (429, with `kind`,
-`limit` and a translated `message`).
+`not_found` (404), `limit_reached` (409), `payload_too_large` (413), `quota_exceeded` (429, with `kind`,
+`limit` and a translated `message`), `ai_unavailable` (502) and `ai_timeout` (504). Failed AI calls refund the quota.
 
 ### AI client
 
@@ -94,6 +100,15 @@ Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`
 reads the key from SSM once per cold start, retries once on
 429/5xx, validates the answer with zod, and always sends the "do not invent experience or skills" rule as
 the system instruction. `backend/src/lib/quota.ts` takes one unit of the daily quota before every AI call.
+
+**No invented facts.** The analysis prompt (`backend/src/lib/analysis.ts`) forbids adding skills, tools,
+employers, dates or numbers that are not in the CV; missing skills come back as advice instead. Then
+`backend/src/lib/skillCheck.ts` checks the rewrite in code: any skill/technology or number that does not
+appear in the original CV is flagged and shown to the user as a warning (highlighted in the improved CV),
+never silently trusted.
+
+The ANALYSIS item uses a time-ordered UUIDv7, so history is sorted newest-first by the sort key; the big
+payload lives in a separate compressed `ANALYSISDETAIL#` item to keep reads and writes small on 5 RCU / 5 WCU.
 
 ## Repository layout
 

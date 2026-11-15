@@ -90,7 +90,10 @@ export const DashboardPage: React.FC = () => {
           </span>
         </Link>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm opacity-90">
+        <Link
+          to="/app/analyses/new"
+          className="block bg-white p-6 rounded-2xl border border-blue-200 shadow-sm hover:border-blue-400 hover:shadow transition"
+        >
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">⚡</span>
             <h3 className="font-semibold text-slate-900">{t('dashboard.modules.analysisTitle')}</h3>
@@ -98,7 +101,10 @@ export const DashboardPage: React.FC = () => {
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
             {t('dashboard.modules.analysisDesc')}
           </p>
-        </div>
+          <span className="mt-3 inline-block text-sm font-semibold text-blue-600">
+            {t('dashboard.open')}
+          </span>
+        </Link>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm opacity-90">
           <div className="flex items-center gap-2 mb-3">

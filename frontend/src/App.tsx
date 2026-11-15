@@ -9,6 +9,10 @@ import { SignInPage } from './pages/SignInPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { CvsPage } from './pages/CvsPage.js';
+import { NewAnalysisPage } from './pages/NewAnalysisPage.js';
+import { AnalysisResultPage } from './pages/AnalysisResultPage.js';
+import { HistoryPage } from './pages/HistoryPage.js';
+import { SharePage } from './pages/SharePage.js';
 
 export function App() {
   return (
@@ -22,6 +26,8 @@ export function App() {
             <Route path="/confirm" element={<ConfirmCodePage />} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            {/* Public share card — no login */}
+            <Route path="/s/:shareId" element={<SharePage />} />
             <Route
               path="/app"
               element={
@@ -35,6 +41,30 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <CvsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/analyses"
+              element={
+                <ProtectedRoute>
+                  <HistoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/analyses/new"
+              element={
+                <ProtectedRoute>
+                  <NewAnalysisPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/analyses/:id"
+              element={
+                <ProtectedRoute>
+                  <AnalysisResultPage />
                 </ProtectedRoute>
               }
             />

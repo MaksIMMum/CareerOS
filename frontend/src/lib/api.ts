@@ -148,3 +148,69 @@ export const updateVacancy = (id: string, data: VacancyInput) =>
   }).then((r) => r.item);
 export const deleteVacancy = (id: string) =>
   apiRequest<void>(`/vacancies/${id}`, { method: 'DELETE' });
+
+// ------------------------------------------------------------------ Analyses
+
+export interface AnalysisResult {
+  matchScore: number;
+  summary: string;
+  matchedSkills: string[];
+  missingSkills: { skill: string; advice: string }[];
+  missingKeywords: string[];
+  weakBullets: { original: string; rewritten: string; why: string }[];
+  improvedCv: string;
+}
+
+export interface AnalysisSummary {
+  id: string;
+  cvId: string;
+  cvName: string;
+  vacancyId: string | null;
+  vacancyTitle: string;
+  company: string;
+  lang: 'uk' | 'en';
+  matchScore: number;
+  flaggedCount: number;
+  createdAt: string;
+  shareId?: string;
+  shareScores?: { before: number; after: number };
+}
+
+export interface Analysis extends AnalysisSummary {
+  result: AnalysisResult;
+  /** Terms in the rewrite that are not in the original CV (post-check), never silently trusted. */
+  flagged: { skills: string[]; numbers: string[] };
+}
+
+export type CreateAnalysisInput = { cvId: string; lang: 'uk' | 'en' } & (
+  | { vacancyId: string }
+  | { vacancy: { title: string; company: string; url?: string; text: string } }
+);
+
+export const createAnalysis = (data: CreateAnalysisInput) =>
+  apiRequest<{ item: Analysis }>('/analyses', { method: 'POST', body: JSON.stringify(data) }).then(
+    (r) => r.item,
+  );
+export const listAnalyses = () =>
+  apiRequest<{ items: AnalysisSummary[] }>('/analyses').then((r) => r.items);
+export const getAnalysis = (id: string) =>
+  apiRequest<{ item: Analysis }>(`/analyses/${id}`).then((r) => r.item);
+export const shareAnalysis = (id: string) =>
+  apiRequest<{ shareId: string; scores: { before: number; after: number } }>(
+    `/analyses/${id}/share`,
+    { method: 'POST' },
+  );
+
+export interface PublicShare {
+  jobTitle: string;
+  scoreBefore: number;
+  scoreAfter: number;
+  createdAt: string;
+}
+
+/** Public, no login needed. */
+export async function getPublicShare(shareId: string): Promise<PublicShare> {
+  const res = await fetch(`${API_URL}/public/shares/${encodeURIComponent(shareId)}`);
+  if (!res.ok) throw new ApiError('not_found', res.status, res.status === 404 ? 'not_found' : undefined);
+  return (await res.json()) as PublicShare;
+}

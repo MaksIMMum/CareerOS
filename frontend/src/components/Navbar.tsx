@@ -46,10 +46,16 @@ export const Navbar: React.FC = () => {
                 {t('nav.dashboard')}
               </Link>
               <Link
+                to="/app/analyses/new"
+                className="text-xs sm:text-sm font-semibold text-blue-700 hover:text-blue-800 whitespace-nowrap"
+              >
+                {t('nav.analysesShort')}
+              </Link>
+              <Link
                 to="/app/cvs"
                 className="text-xs sm:text-sm font-medium text-slate-700 hover:text-blue-600 whitespace-nowrap"
               >
-                {t('nav.cvs')}
+                {t('nav.cvsShort')}
               </Link>
               <span className="hidden md:inline-block text-xs text-slate-400">|</span>
               <span className="hidden md:inline-block text-xs text-slate-600 truncate max-w-[150px]">
