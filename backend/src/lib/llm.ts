@@ -105,9 +105,15 @@ export interface GeminiOptions {
   getApiKey?: () => Promise<string>;
   fetchFn?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
-  /** Whole call budget incl. the retry; Lambda times out at 29 s. */
+  /**
+   * Second model, used only for the LAST attempt after the main model kept failing with
+   * 429/5xx/timeouts (Google's "model is experiencing high demand"). Default: GEMINI_FALLBACK_MODEL.
+   */
+  fallbackModel?: string;
+  /** Whole call budget incl. retries; Lambda times out at 29 s. */
   deadlineMs?: number;
-  retryDelayMs?: number;
+  /** Waits before each retry after an overload/network error; their count + 1 = max attempts. */
+  retryDelaysMs?: number[];
   temperature?: number;
   /** Caps the answer length; a full improved CV needs a few thousand tokens. */
   maxOutputTokens?: number;
@@ -126,7 +132,8 @@ export class GeminiProvider implements LlmProvider {
   private readonly fetchFn: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly deadlineMs: number;
-  private readonly retryDelayMs: number;
+  private readonly fallbackModel: string | undefined;
+  private readonly retryDelaysMs: number[];
   private readonly temperature: number;
   private readonly maxOutputTokens: number;
 
@@ -136,7 +143,8 @@ export class GeminiProvider implements LlmProvider {
     this.fetchFn = opts.fetchFn ?? fetch;
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.deadlineMs = opts.deadlineMs ?? 25_000;
-    this.retryDelayMs = opts.retryDelayMs ?? 1_000;
+    this.fallbackModel = (opts.fallbackModel ?? process.env.GEMINI_FALLBACK_MODEL) || undefined;
+    this.retryDelaysMs = opts.retryDelaysMs ?? [1_500, 3_000, 5_000];
     this.temperature = opts.temperature ?? 0.3;
     this.maxOutputTokens = opts.maxOutputTokens ?? 8192;
   }
@@ -145,14 +153,20 @@ export class GeminiProvider implements LlmProvider {
     const apiKey = await this.getApiKey();
     const body = JSON.stringify(this.buildRequest(prompt, schema));
     const started = Date.now();
+    const maxAttempts = this.retryDelaysMs.length + 1;
+    let overloadRetries = 0; // retries after 429/5xx/network/timeout (with a growing wait)
+    let badOutputRetried = false; // at most one fresh attempt after a malformed answer
 
-    // At most 2 attempts: the second only after a 429/5xx/network error/timeout or a bad answer.
-    for (let attempt = 1; ; attempt++) {
+    for (;;) {
+      // The last allowed attempt goes to the fallback model, if one is configured.
+      const lastAttempt = overloadRetries === maxAttempts - 1;
+      const model = lastAttempt && this.fallbackModel ? this.fallbackModel : this.model;
       const remaining = this.deadlineMs - (Date.now() - started);
-      let res: Response;
+      let failure: { code: LlmErrorCode; message: string; status?: number } | undefined;
+      let res: Response | undefined;
       try {
         res = await this.fetchFn(
-          `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -162,29 +176,36 @@ export class GeminiProvider implements LlmProvider {
         );
       } catch (err) {
         const code = (err as Error).name === 'TimeoutError' ? 'timeout' : 'network';
-        if (attempt === 1 && this.canRetry(started)) {
-          await this.sleep(this.retryDelayMs);
-          continue;
-        }
-        throw new LlmError(code, `Gemini request failed: ${(err as Error).message}`);
+        failure = { code, message: `Gemini request failed: ${(err as Error).message}` };
       }
 
-      if (!res.ok) {
-        if (attempt === 1 && RETRYABLE(res.status) && this.canRetry(started)) {
-          await this.sleep(this.retryDelayMs);
+      if (res && !res.ok) {
+        if (!RETRYABLE(res.status)) throw new LlmError('http', `Gemini HTTP ${res.status}`, res.status);
+        failure = { code: 'http', message: `Gemini HTTP ${res.status}`, status: res.status };
+      }
+
+      if (failure) {
+        const delay = this.retryDelaysMs[overloadRetries];
+        if (delay !== undefined && this.canRetry(started, delay)) {
+          console.warn('Gemini busy, retrying', { model, status: failure.status, code: failure.code, attempt: overloadRetries + 1 });
+          overloadRetries++;
+          await this.sleep(delay);
           continue;
         }
-        throw new LlmError('http', `Gemini HTTP ${res.status}`, res.status);
+        throw new LlmError(failure.code, failure.message, failure.status);
       }
 
       try {
-        return parseAndValidate(this.extractText((await res.json()) as GeminiResponse), schema);
+        const result = parseAndValidate(this.extractText((await res!.json()) as GeminiResponse), schema);
+        if (model !== this.model) console.warn('Answered by the fallback model', { model });
+        return result;
       } catch (err) {
         // Models occasionally return truncated/malformed JSON; one fresh attempt usually fixes it.
         const retryable =
           err instanceof LlmError && ['invalid_json', 'schema_mismatch', 'empty'].includes(err.code);
-        if (attempt === 1 && retryable && this.canRetry(started)) {
+        if (retryable && !badOutputRetried && this.canRetry(started, 0)) {
           console.warn('Retrying after bad model output', { code: (err as LlmError).code });
+          badOutputRetried = true;
           continue;
         }
         throw err;
@@ -192,9 +213,9 @@ export class GeminiProvider implements LlmProvider {
     }
   }
 
-  private canRetry(started: number): boolean {
-    // Only retry when a second attempt still has a realistic time budget.
-    return this.deadlineMs - (Date.now() - started) - this.retryDelayMs > 5_000;
+  private canRetry(started: number, delayMs: number): boolean {
+    // Only retry when another attempt still has a realistic time budget after the wait.
+    return this.deadlineMs - (Date.now() - started) - delayMs > 5_000;
   }
 
   private buildRequest(prompt: string, schema: z.ZodType) {

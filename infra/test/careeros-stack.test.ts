@@ -185,6 +185,7 @@ describe('CareerOsStack', () => {
         Variables: Match.objectLike({
           TABLE_NAME: Match.anyValue(),
           GEMINI_MODEL: 'gemini-3.5-flash-lite',
+          GEMINI_FALLBACK_MODEL: 'gemini-3.1-flash-lite',
         }),
       },
     });

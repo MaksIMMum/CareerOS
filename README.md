@@ -121,8 +121,10 @@ Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`
 
 `backend/src/lib/llm.ts` defines `LlmProvider.generateJson(prompt, schema)`. The `GeminiProvider` calls
 `gemini-3.5-flash-lite` (the `GEMINI_MODEL` setting in `infra/lib/careeros-stack.ts`) over REST in JSON mode,
-reads the key from SSM once per cold start, retries once on
-429/5xx, validates the answer with zod, and always sends the "do not invent experience or skills" rule as
+reads the key from SSM once per cold start, validates the answer with zod,
+retries a 429/5xx/network error ("model is experiencing high demand") up to 3 times after 1.5 s, 3 s and 5 s
+(within a 25 s budget, under API Gateway's 29 s limit) and sends only the last attempt to
+`gemini-3.1-flash-lite` (`GEMINI_FALLBACK_MODEL`); a malformed answer gets one fresh attempt, and always sends the "do not invent experience or skills" rule as
 the system instruction. `backend/src/lib/quota.ts` takes one unit of the daily quota before every AI call.
 
 **No invented facts.** The analysis prompt (`backend/src/lib/analysis.ts`) forbids adding skills, tools,
