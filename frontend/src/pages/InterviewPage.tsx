@@ -17,6 +17,8 @@ import { LIMITS } from '../lib/limits.js';
 import type { ApplicationPrefill } from '../components/ApplicationDialog.js';
 import type { InterviewPrefill } from './NewInterviewPage.js';
 import { ErrorAlert, Icon, scoreColor } from '../components/ui.js';
+import { DonationPrompt } from '../components/DonationPrompt.js';
+import { FeedbackCard } from '../components/FeedbackCard.js';
 
 // Browser storage is only a convenience here (timer preference, unsent draft): it may be
 // unavailable (private mode), so every access is guarded and the page works without it.
@@ -396,6 +398,9 @@ const Results: React.FC<{ iv: Interview; onAgain: () => void; locale: string }> 
           })}
         </ol>
       </section>
+
+      <DonationPrompt className="mt-2" />
+      <FeedbackCard context="interview" onceKey="interview" className="mt-2" />
     </div>
   );
 };

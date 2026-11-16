@@ -52,3 +52,5 @@ jobs:
         run: npm run deploy
         env:
           ALERT_EMAIL: ${{ inputs.alert_email }}
+          # Team accounts the /admin page can exclude (comma-separated); kept out of the public repo.
+          TEAM_EMAILS: ${{ secrets.TEAM_EMAILS }}

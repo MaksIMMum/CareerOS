@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getCurrentUser, signOut as amplifySignOut, type AuthUser } from 'aws-amplify/auth';
+import { getCurrentUser, fetchAuthSession, signOut as amplifySignOut, type AuthUser } from 'aws-amplify/auth';
 import { ApiError, fetchMe, syncMe, type UserProfile } from '../lib/api.js';
 import {
   captureSourceParam,
@@ -13,6 +13,7 @@ import i18n from '../i18n.js';
 interface AuthContextType {
   user: AuthUser | null;
   profile: UserProfile | null;
+  isAdmin: boolean;
   isLoading: boolean;
   isConfigured: boolean;
   refreshUser: () => Promise<void>;
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Capture any ?src= referral parameter on page landing
@@ -55,6 +57,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
+
+      try {
+        const session = await fetchAuthSession();
+        const rawGroups = (session.tokens?.idToken?.payload as any)?.['cognito:groups'];
+        const isUserAdmin = Array.isArray(rawGroups)
+          ? rawGroups.includes('admins')
+          : typeof rawGroups === 'string'
+            ? rawGroups.split(',').map((g: string) => g.trim()).includes('admins')
+            : false;
+        setIsAdmin(isUserAdmin);
+      } catch {
+        setIsAdmin(false);
+      }
 
       try {
         const { profile: userProfile } = await fetchMe();
@@ -99,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setUser(null);
       setProfile(null);
+      setIsAdmin(false);
     }
   };
 
@@ -107,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         profile,
+        isAdmin,
         isLoading,
         isConfigured: isAuthConfigured,
         refreshUser,

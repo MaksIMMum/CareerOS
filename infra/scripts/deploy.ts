@@ -9,6 +9,7 @@
  * Usage:
  *   ALERT_EMAIL=you@example.com npm run deploy
  *   npm run deploy -- --alert-email you@example.com
+ * Optional: TEAM_EMAILS=a@x.com,b@y.com (team accounts the /admin page can exclude).
  */
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -43,6 +44,9 @@ function buildFrontend(): void {
   run('npm', ['run', 'build', '--workspace=frontend'], REPO_ROOT);
 }
 
+/** Comma-separated team e-mails for the /admin filter (TEAM_EMAILS env), never committed. */
+const TEAM_EMAILS = (process.env.TEAM_EMAILS ?? '').trim();
+
 function cdkDeploy(alertEmail: string): void {
   run(
     'npx',
@@ -56,6 +60,7 @@ function cdkDeploy(alertEmail: string): void {
       OUTPUTS_FILE,
       '-c',
       `alertEmail=${alertEmail}`,
+      ...(TEAM_EMAILS ? ['-c', `teamEmails=${TEAM_EMAILS}`] : []),
     ],
     INFRA_DIR,
   );

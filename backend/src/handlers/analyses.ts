@@ -286,7 +286,7 @@ export function createAnalysesHandler({
         },
       }),
     );
-    await logEvent(sub, 'SHARE', { analysisId: id, shareId, ...scores }, client, tableName);
+    await logEvent(sub, 'SHARE_CREATED', { analysisId: id, shareId, ...scores }, client, tableName);
     return json(201, { shareId, scores });
   }
 

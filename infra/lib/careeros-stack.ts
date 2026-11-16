@@ -55,7 +55,7 @@ const crud = (id: string, file: string, path: string): RouteDef => ({
 
 const ROUTES: RouteDef[] = [
   { id: 'Health', file: 'health.ts', routes: [{ path: '/health', methods: [GET] }], public: true },
-  { id: 'Me', file: 'me.ts', routes: [{ path: '/me', methods: [GET, POST] }] },
+  { id: 'Me', file: 'me.ts', routes: [{ path: '/me', methods: [GET, POST, DELETE] }] },
   crud('Cvs', 'cvs.ts', '/cvs'),
   crud('Vacancies', 'vacancies.ts', '/vacancies'),
   {
@@ -85,6 +85,27 @@ const ROUTES: RouteDef[] = [
       { path: '/applications', methods: [GET, POST] },
       { path: '/applications/{id}', methods: [GET, PATCH, DELETE] },
     ],
+  },
+  // In-app user feedback
+  {
+    id: 'Feedback',
+    file: 'feedback.ts',
+    routes: [{ path: '/feedback', methods: [POST] }],
+  },
+  // Donations telemetry
+  {
+    id: 'Donations',
+    file: 'donations.ts',
+    routes: [
+      { path: '/donations/click', methods: [POST] },
+      { path: '/donations/report', methods: [POST] },
+    ],
+  },
+  // Admin metrics dashboard
+  {
+    id: 'Admin',
+    file: 'admin.ts',
+    routes: [{ path: '/admin/metrics', methods: [GET] }],
   },
   // Read-only share card (job title + score before/after, no CV text) for /s/<id> links.
   {
@@ -257,6 +278,16 @@ export class CareerOsStack extends cdk.Stack {
       this,
     );
 
+    // Team e-mails for the admin "exclude team accounts" filter: passed at deploy time
+    // (-c teamEmails=a@x,b@y), never committed — the repository is public.
+    const teamEmailsCtx: unknown = this.node.tryGetContext('teamEmails');
+    const teamEmails = typeof teamEmailsCtx === 'string' ? teamEmailsCtx : '';
+    if (!teamEmails) {
+      cdk.Annotations.of(this).addWarning(
+        'No teamEmails context given: /admin cannot exclude team accounts. Pass -c teamEmails=a@x.com,b@y.com',
+      );
+    }
+
     for (const route of ROUTES) {
       const logGroup = new logs.LogGroup(this, `${route.id}Logs`, {
         retention: logs.RetentionDays.TWO_WEEKS,
@@ -275,6 +306,8 @@ export class CareerOsStack extends cdk.Stack {
         depsLockFilePath: path.join(REPO_ROOT, 'package-lock.json'),
         environment: {
           TABLE_NAME: table.tableName,
+          ...(route.id === 'Me' ? { USER_POOL_ID: userPool.userPoolId } : {}),
+          ...(route.id === 'Admin' ? { TEAM_EMAILS: teamEmails } : {}),
           GEMINI_KEY_PARAM,
           GEMINI_MODEL,
           NODE_OPTIONS: '--enable-source-maps',
@@ -304,6 +337,15 @@ export class CareerOsStack extends cdk.Stack {
           conditions: { StringEquals: { 'kms:ViaService': `ssm.${this.region}.amazonaws.com` } },
         }),
       );
+      // "Delete my account" removes the Cognito user: only the /me function may do that.
+      if (route.id === 'Me') {
+        fn.addToRolePolicy(
+          new iam.PolicyStatement({
+            actions: ['cognito-idp:AdminDeleteUser'],
+            resources: [userPool.userPoolArn],
+          }),
+        );
+      }
 
       const integration = new integrations.HttpLambdaIntegration(`${route.id}Integration`, fn);
       for (const r of route.routes) {

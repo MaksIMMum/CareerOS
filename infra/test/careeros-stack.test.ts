@@ -124,6 +124,16 @@ describe('CareerOsStack', () => {
       RouteKey: 'POST /me',
       AuthorizationType: 'JWT',
     });
+    t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'DELETE /me',
+      AuthorizationType: 'JWT',
+    });
+  });
+
+  it('protects feedback, donation, and admin metrics routes with the JWT authorizer', () => {
+    for (const key of ['POST /feedback', 'POST /donations/click', 'POST /donations/report', 'GET /admin/metrics']) {
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: key, AuthorizationType: 'JWT' });
+    }
   });
 
   it('protects the CV and vacancy CRUD routes with the JWT authorizer', () => {
@@ -183,6 +193,17 @@ describe('CareerOsStack', () => {
     expect(policies).toContain('ssm:GetParameter');
     expect(policies).toContain(':parameter/careeros/gemini-api-key');
     expect(policies).toContain('dynamodb:PutItem');
+  });
+
+  it('lets only the /me function delete Cognito users, and only it gets USER_POOL_ID', () => {
+    const policies = Object.values(t.findResources('AWS::IAM::Policy')).filter((p) =>
+      JSON.stringify(p).includes('cognito-idp:AdminDeleteUser'),
+    );
+    expect(policies).toHaveLength(1);
+    const withPool = Object.values(t.findResources('AWS::Lambda::Function')).filter(
+      (f: any) => f.Properties?.Environment?.Variables?.USER_POOL_ID,
+    );
+    expect(withPool).toHaveLength(1);
   });
 
   it('creates a 1 USD monthly budget when alertEmail is given', () => {
