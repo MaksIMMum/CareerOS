@@ -20,7 +20,7 @@ export const SharePage: React.FC = () => {
       <div className="flex justify-end">
         <LangSwitch />
       </div>
-      <div className="flex-1 flex items-center justify-center py-8">
+      <main className="flex-1 flex items-center justify-center py-8">
         <article className="w-full max-w-[1100px] rounded-[28px] bg-accent text-white px-6 py-8 sm:px-16 sm:py-14 flex flex-col gap-10 relative overflow-hidden">
           <Rings className="w-[620px] h-[620px] -right-[180px] -top-[200px]" />
           <div className="relative flex items-center">
@@ -67,7 +67,7 @@ export const SharePage: React.FC = () => {
             </Link>
           </div>
         </article>
-      </div>
+      </main>
     </div>
   );
 };

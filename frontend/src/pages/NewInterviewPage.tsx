@@ -101,7 +101,7 @@ export const NewInterviewPage: React.FC = () => {
               {t('interview.historyLink')} →
             </Link>
             <div className="px-[18px] py-3.5 rounded-2xl bg-white/15">
-              <p className="mb-1.5 font-mono text-xs text-accent-on">{t('analysis.quotaLabel')}</p>
+              <p className="mb-1.5 font-mono text-xs text-white">{t('analysis.quotaLabel')}</p>
               <p className="font-mono font-bold text-base">{t('interview.quotaValue', { limit: LIMITS.INTERVIEWS_PER_DAY })}</p>
             </div>
           </div>

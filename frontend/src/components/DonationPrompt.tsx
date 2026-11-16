@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { recordDonationClick, reportDonation } from '../lib/api.js';
 import { DEFAULT_DONATION_URL } from '../lib/donation.js';
+import { apiErrorMessage } from '../lib/apiErrors.js';
 
 interface DonationPromptProps {
   className?: string;
@@ -39,8 +40,8 @@ export const DonationPrompt: React.FC<DonationPromptProps> = ({ className = '' }
         jarUrl,
       });
       setReported(true);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to record donation');
+    } catch (err) {
+      setError(apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }

@@ -30,7 +30,7 @@ export const PrivacyPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
+    <main className="w-full max-w-4xl mx-auto px-4 py-8 sm:py-12">
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-3">
           <span>🛡️</span>
@@ -140,6 +140,6 @@ export const PrivacyPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 };

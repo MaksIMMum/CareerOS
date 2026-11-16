@@ -86,8 +86,12 @@ describe('CareerOsStack', () => {
     });
     const apis = t.findResources('AWS::ApiGatewayV2::Api');
     const cors = Object.values(apis)[0]!.Properties.CorsConfiguration;
-    expect(cors.AllowOrigins).toHaveLength(2);
-    expect(cors.AllowOrigins).toContain('http://localhost:5173');
+    // Only the CloudFront site by default; localhost only when explicitly allowed.
+    expect(cors.AllowOrigins).toHaveLength(1);
+    expect(JSON.stringify(cors.AllowOrigins)).not.toContain('localhost');
+
+    const dev = Object.values(synth({ allowLocalDev: 'true' }).findResources('AWS::ApiGatewayV2::Api'))[0]!;
+    expect(dev.Properties.CorsConfiguration.AllowOrigins).toContain('http://localhost:5173');
   });
 
   it('protects routes with the Cognito JWT authorizer by default', () => {

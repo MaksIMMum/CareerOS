@@ -241,7 +241,7 @@ export const TrackerPage: React.FC = () => {
                         ))}
                       </ul>
                       {items.length === 0 && (
-                        <p className="px-2 py-6 text-center text-sm text-ink-faint">{isOver ? t('tracker.dropHere') : t('tracker.columnEmpty')}</p>
+                        <p className="px-2 py-6 text-center text-sm text-ink-muted">{isOver ? t('tracker.dropHere') : t('tracker.columnEmpty')}</p>
                       )}
                     </div>
                   );
@@ -373,14 +373,18 @@ const CvSummaryCard: React.FC<{ stats: CvStats[]; best: BestVersion | null; tota
         {headline}
       </p>
 
-      <div>
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={t('tracker.summary.title')}>
         <table className="w-full text-left">
           <thead>
             <tr className="eyebrow">
               <th scope="col" className="px-1 pb-2 font-medium">{t('tracker.summary.colCv')}</th>
-              <th scope="col" className="px-1 pb-2 font-medium text-right">{t('tracker.summary.colSent')}</th>
-              <th scope="col" className="px-1 pb-2 font-medium text-right">{t('tracker.summary.colReplies')}</th>
-              <th scope="col" className="px-1 pb-2 pl-3 sm:pl-4 font-medium text-right sm:text-left sm:w-[38%]">{t('tracker.summary.colRate')}</th>
+              <th scope="col" className="hidden sm:table-cell px-1 pb-2 font-medium text-right">{t('tracker.summary.colSent')}</th>
+              <th scope="col" className="hidden sm:table-cell px-1 pb-2 font-medium text-right">{t('tracker.summary.colReplies')}</th>
+              <th scope="col" className="relative px-1 pb-2 pl-3 sm:pl-4 font-medium text-right sm:text-left sm:w-[38%]">
+                {/* Phones: a short "%" header so the column fits; the full name stays for screen readers. */}
+                <span className="sm:hidden" aria-hidden="true">%</span>
+                <span className="sr-only sm:not-sr-only">{t('tracker.summary.colRate')}</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line border-t border-line">
@@ -389,9 +393,13 @@ const CvSummaryCard: React.FC<{ stats: CvStats[]; best: BestVersion | null; tota
                 <th scope="row" className="px-1 py-3 font-semibold text-[15px]">
                   <span className="break-words">{s.cvName}</span>
                   {s.cvId === bestId && <span className="ml-2 chip py-0.5 px-2 text-[12px] font-bold bg-sun text-ink align-middle">{t('tracker.summary.best')}</span>}
+                  {/* Phones: the two count columns are folded into one line under the name. */}
+                  <span className="sm:hidden block mt-1 text-[13px] font-normal text-ink-muted">
+                    {t('tracker.summary.mobileCounts', { sent: s.sent, replies: s.replies })}
+                  </span>
                 </th>
-                <td className="px-1 py-3 text-right font-mono font-semibold">{s.sent}</td>
-                <td className="px-1 py-3 text-right font-mono font-semibold">{s.replies}</td>
+                <td className="hidden sm:table-cell px-1 py-3 text-right font-mono font-semibold">{s.sent}</td>
+                <td className="hidden sm:table-cell px-1 py-3 text-right font-mono font-semibold">{s.replies}</td>
                 <td className="px-1 py-3 pl-3 sm:pl-4">
                   <div className="flex items-center justify-end gap-3">
                     <div className="hidden sm:block flex-1 h-2.5 rounded-full bg-line overflow-hidden" aria-hidden="true">

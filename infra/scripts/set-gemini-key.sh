@@ -2,14 +2,14 @@
 # Stores the Gemini API key in AWS SSM Parameter Store as an encrypted SecureString.
 # The key is read without echoing it, so it never appears on screen, in shell history or in git.
 #
-# Usage:  npm run set-gemini-key            (uses AWS_PROFILE, default "carreros")
+# Usage:  npm run set-gemini-key            (uses your current AWS credentials; set AWS_PROFILE to pick a profile)
 set -euo pipefail
 
-PROFILE="${AWS_PROFILE:-carreros}"
+PROFILE="${AWS_PROFILE:-}"
 REGION="${CAREEROS_REGION:-us-east-1}"
 NAME="/careeros/gemini-api-key"
 
-echo "AWS profile: $PROFILE   region: $REGION   parameter: $NAME"
+echo "AWS profile: ${PROFILE:-(default credentials)}   region: $REGION   parameter: $NAME"
 echo "Paste your Gemini API key (Ctrl+Shift+V or right-click -> Paste), then press Enter."
 echo "Each character is shown as * so you can see the paste worked."
 printf "Key: "
@@ -37,7 +37,7 @@ if [[ "$KEY" != AIza* && "$KEY" != AQ.* ]]; then
 fi
 
 aws ssm put-parameter \
-  --profile "$PROFILE" \
+  ${PROFILE:+--profile "$PROFILE"} \
   --region "$REGION" \
   --name "$NAME" \
   --type SecureString \

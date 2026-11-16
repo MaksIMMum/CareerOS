@@ -271,6 +271,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Pain */}
+      <main>
       <section className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-16 pb-14 sm:pt-24 sm:pb-[72px] flex flex-wrap gap-10 sm:gap-14 items-center">
         <div className="flex-[1_1_420px] min-w-0">
           <p className={`${eyebrow} text-warn`}>{t('landing.pain.eyebrow')}</p>
@@ -434,6 +435,8 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      </main>
 
       <footer className="border-t border-line bg-white">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-7 flex flex-wrap gap-4 justify-between items-center text-sm text-ink-muted">
