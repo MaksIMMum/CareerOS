@@ -14,6 +14,9 @@ import { AnalysisResultPage } from './pages/AnalysisResultPage.js';
 import { HistoryPage } from './pages/HistoryPage.js';
 import { SharePage } from './pages/SharePage.js';
 import { TrackerPage } from './pages/TrackerPage.js';
+import { InterviewsPage } from './pages/InterviewsPage.js';
+import { NewInterviewPage } from './pages/NewInterviewPage.js';
+import { InterviewPage } from './pages/InterviewPage.js';
 
 /** Every /app page: requires a session, shares the app header. */
 function AppLayout() {
@@ -47,6 +50,9 @@ export function App() {
           <Route path="analyses/new" element={<NewAnalysisPage />} />
           <Route path="analyses/:id" element={<AnalysisResultPage />} />
           <Route path="tracker" element={<TrackerPage />} />
+          <Route path="interviews" element={<InterviewsPage />} />
+          <Route path="interviews/new" element={<NewInterviewPage />} />
+          <Route path="interviews/:id" element={<InterviewPage />} />
           {/* Any other /app/* path still requires a session, then lands on the overview */}
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Route>

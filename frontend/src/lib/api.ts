@@ -263,3 +263,72 @@ export const updateApplication = (id: string, data: Partial<ApplicationInput>) =
   }).then((r) => r.item);
 export const deleteApplication = (id: string) =>
   apiRequest<void>(`/applications/${id}`, { method: 'DELETE' });
+
+// ------------------------------------------------------------------ Mock interviews
+
+export const QUESTION_TYPES = ['HR', 'TECHNICAL', 'BEHAVIOURAL'] as const;
+export type QuestionType = (typeof QUESTION_TYPES)[number];
+
+export interface InterviewQuestion {
+  type: QuestionType;
+  /** Short area name, e.g. "SQL" or "teamwork". */
+  topic: string;
+  question: string;
+}
+
+export interface InterviewAnswer {
+  answer: string;
+  seconds?: number;
+  /** 1–10 */
+  score: number;
+  feedback: string;
+  /** Example answer; [square brackets] are placeholders for facts the CV does not give. */
+  betterAnswer: string;
+  /** Terms in the example that are in neither the CV nor the user's answer (post-check). */
+  flagged: { skills: string[]; numbers: string[] };
+  answeredAt: string;
+}
+
+export interface InterviewSummary {
+  id: string;
+  cvId: string;
+  cvName: string;
+  vacancyId: string;
+  vacancyTitle: string;
+  company: string;
+  lang: 'uk' | 'en';
+  status: 'IN_PROGRESS' | 'DONE';
+  questionCount: number;
+  answeredCount: number;
+  createdAt: string;
+  finishedAt?: string;
+  /** 1–10, one decimal; set when DONE. */
+  overallScore?: number;
+}
+
+export interface InterviewOutcome {
+  overallScore: number;
+  byType: Partial<Record<QuestionType, number>>;
+  strongest: string[];
+  weakest: string[];
+}
+
+export interface Interview extends InterviewSummary {
+  questions: InterviewQuestion[];
+  answers: InterviewAnswer[];
+  outcome?: InterviewOutcome;
+}
+
+export const createInterview = (data: { cvId: string; vacancyId: string; lang: 'uk' | 'en' }) =>
+  apiRequest<{ item: Interview }>('/interviews', { method: 'POST', body: JSON.stringify(data) }).then(
+    (r) => r.item,
+  );
+export const listInterviews = () =>
+  apiRequest<{ items: InterviewSummary[] }>('/interviews').then((r) => r.items);
+export const getInterview = (id: string) =>
+  apiRequest<{ item: Interview }>(`/interviews/${id}`).then((r) => r.item);
+export const answerInterview = (id: string, data: { index: number; answer: string; seconds?: number }) =>
+  apiRequest<{ item: Interview }>(`/interviews/${id}/answers`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then((r) => r.item);

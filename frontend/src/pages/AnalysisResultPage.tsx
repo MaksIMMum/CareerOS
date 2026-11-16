@@ -7,6 +7,7 @@ import { activeFlags, highlight } from '../lib/flagged.js';
 import { LIMITS } from '../lib/limits.js';
 import { ErrorAlert, Icon, OkAlert, Rings, ScoreRing } from '../components/ui.js';
 import type { ApplicationPrefill } from '../components/ApplicationDialog.js';
+import type { InterviewPrefill } from './NewInterviewPage.js';
 
 const Chips: React.FC<{ items: string[]; cls: string; empty: string }> = ({ items, cls, empty }) =>
   items.length === 0 ? (
@@ -117,6 +118,11 @@ export const AnalysisResultPage: React.FC = () => {
     navigate('/app/tracker', { state: { prefill } });
   };
 
+  const practise = () => {
+    const prefill: InterviewPrefill = { cvId: savedCvId ?? analysis.cvId, vacancyId: analysis.vacancyId };
+    navigate('/app/interviews/new', { state: { prefill } });
+  };
+
   const date = new Date(analysis.createdAt).toLocaleDateString(i18n.language === 'en' ? 'en-GB' : 'uk-UA', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const wb = r.weakBullets[Math.min(bullet, r.weakBullets.length - 1)];
@@ -167,8 +173,8 @@ export const AnalysisResultPage: React.FC = () => {
                 <button type="button" onClick={addToTracker} disabled={busy !== null} className={`${onBlueBtn} min-h-[52px]`}>
                   <Icon.columns className="w-4 h-4" /> {t('analysis.addToTracker')}
                 </button>
-                <button type="button" disabled title={t('common.soon')} className={`${onBlueBtn} min-h-[52px]`}>
-                  {t('analysis.practise')} <span className="font-mono text-[11px] uppercase text-accent-on">{t('common.soon')}</span>
+                <button type="button" onClick={practise} disabled={busy !== null} className={`${onBlueBtn} min-h-[52px]`}>
+                  <Icon.chat className="w-4 h-4" /> {t('analysis.practise')}
                 </button>
               </div>
             </div>

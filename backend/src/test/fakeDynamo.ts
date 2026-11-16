@@ -82,6 +82,8 @@ export class FakeDynamo {
         }
         // items.ts update: SET #updatedAt = :updatedAt, #f0 = :f0, ...
         if (i.ConditionExpression === 'attribute_exists(PK)' && !existing) this.conditionalFail();
+        // interviews.ts answer: optimistic lock on the answered counter
+        if (i.ConditionExpression === '#a = :n' && existing?.[names['#a']] !== values[':n']) this.conditionalFail();
         for (const part of expr.replace(/^SET /, '').split(', ')) {
           const [n, v] = part.split(' = ');
           existing![names[n!]] = values[v!];

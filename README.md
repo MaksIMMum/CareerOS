@@ -66,7 +66,8 @@ The API builds every key from the caller's JWT, so a user can only ever touch th
 | Analysis (summary) | `USER#<sub>` | `ANALYSIS#<uuidv7>` | `cvId`, `cvName`, `vacancyId`, `vacancyTitle`, `company`, `lang`, `matchScore`, `flaggedCount`, `createdAt`, `shareId?`, `shareScores?` |
 | Analysis (detail) | `USER#<sub>` | `ANALYSISDETAIL#<uuidv7>` | `data` = brotli-compressed JSON: full AI result, post-check flags, CV + vacancy snapshot |
 | Public share card | `SHARE#<shareId>` | `SHARE` | `jobTitle`, `scoreBefore`, `scoreAfter`, `createdAt` (+ `ownerSub`, `analysisId`, never returned) |
-| Mock interview | `USER#<sub>` | `INTERVIEW#<id>` | defined in Step 7 |
+| Mock interview (summary) | `USER#<sub>` | `INTERVIEW#<uuidv7>` | `cvId`, `cvName`, `vacancyId`, `vacancyTitle`, `company`, `lang`, `status` (`IN_PROGRESS` \| `DONE`), `questionCount`, `answeredCount`, `createdAt`, `finishedAt?`, `overallScore?` (1–10) |
+| Mock interview (detail) | `USER#<sub>` | `INTERVIEWDETAIL#<uuidv7>` | `answered` (lock counter), `data` = brotli-compressed JSON: CV + vacancy snapshot, questions (`type`, `topic`, `question`), scored answers, outcome |
 | Application | `USER#<sub>` | `APP#<id>` | `id`, `vacancyId?`, `cvId` (the CV version sent), `cvName` (snapshot), `company`, `title`, `appliedAt` (`YYYY-MM-DD`), `status` (`APPLIED` \| `INTERVIEW` \| `OFFER` \| `REJECTED`), `statusChangedAt`, `hadInterview`, `notes` (≤ 1,000 chars), `createdAt`, `updatedAt` |
 | Event | `EVENT#<yyyy-mm-dd>` | `<iso time>#<sub>#<type>` | `type` (e.g. `SIGNUP`), `payload`; `GSI1PK=USER#<sub>`, `GSI1SK=<iso time>` |
 
@@ -77,6 +78,14 @@ The quota day follows Kyiv time. Limits per user: 20 CVs, 50 vacancies, 200 appl
 INTERVIEW/OFFER, or ticked by the user). A rejection without an interview is not a reply. The "Which CV works"
 summary groups applications by `cvId` and compares reply rates; cards that stay in `APPLIED` for more than
 7 days get a "follow up?" badge. Adding a card logs `APPLICATION_ADDED`; a status change logs `STATUS_CHANGED`.
+
+**Mock interview.** Starting one asks the AI for 6–8 questions (HR, technical and behavioural, specific to the
+vacancy and CV) and uses 1 of 5 daily interviews; answers do not count separately. Each answer is one AI call
+(score 1–10, feedback and a better example answer that uses only facts from the CV or the user's own answer,
+with `[placeholders]` for anything missing; a post-check flags other skills/numbers). Answers are accepted
+strictly in order. Strongest/weakest areas are computed from the per-question topic scores, so finishing needs
+no extra AI call and every request stays under the 29 s API limit. Start logs `INTERVIEW_STARTED`, the last
+answer logs `INTERVIEW_DONE`. The tracker links each card to the latest interview for the same vacancy.
 
 ### API
 
@@ -95,6 +104,9 @@ All routes except `/health` require `Authorization: Bearer <Cognito ID token>`; 
 | `POST /analyses/{id}/share` | Re-scores CV before → after once and creates a public card (1 of 10 daily shares) |
 | `GET /applications`, `POST /applications` | Tracker cards / add one `{ cvId, title, company?, vacancyId?, appliedAt?, status?, hadInterview?, notes? }` |
 | `GET /applications/{id}`, `PATCH /applications/{id}`, `DELETE /applications/{id}` | Read / change any subset of fields (e.g. only `status`) / delete |
+| `POST /interviews` | `{ cvId, vacancyId, lang? }` → mock interview with 6–8 questions (uses 1 of 5 daily interviews) |
+| `GET /interviews`, `GET /interviews/{id}` | Interview history (50 newest, summaries) / questions, answers and outcome |
+| `POST /interviews/{id}/answers` | `{ index, answer, seconds? }` → score, feedback, better answer; `409 wrong_question` if not the next question |
 | `GET /public/shares/{shareId}` | **Public**: job title + score before → after only (no CV text) |
 
 Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`), `unauthorized` (401),
