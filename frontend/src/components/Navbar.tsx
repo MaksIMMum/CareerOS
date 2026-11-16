@@ -40,6 +40,7 @@ export const AppHeader: React.FC = () => {
       label: t('nav.history'),
       active: pathname.startsWith('/app/analyses') && pathname !== '/app/analyses/new',
     },
+    { to: '/app/tracker', label: t('nav.tracker'), active: pathname.startsWith('/app/tracker') },
   ];
 
   const handleSignOut = async () => {
@@ -53,14 +54,14 @@ export const AppHeader: React.FC = () => {
         <Logo to="/app" size={30} tone="onBlue" />
         <nav
           aria-label={t('nav.sections')}
-          className="order-last md:order-none w-full md:w-auto md:flex-1 flex gap-1 overflow-x-auto -mx-1 px-1 pb-1 md:pb-0"
+          className="order-last md:order-none w-full md:w-auto md:flex-1 flex flex-wrap md:flex-nowrap gap-1 md:overflow-x-auto -mx-1 px-1 pb-1 md:pb-0"
         >
           {tabs.map((tab) => (
             <Link
               key={tab.to}
               to={tab.to}
               aria-current={tab.active ? 'page' : undefined}
-              className={`whitespace-nowrap inline-flex items-center min-h-[40px] px-3.5 rounded-full text-[15px] leading-none no-underline ${
+              className={`whitespace-nowrap inline-flex items-center min-h-[40px] px-2.5 sm:px-3.5 rounded-full text-[14px] sm:text-[15px] leading-none no-underline ${
                 tab.active ? 'bg-sun text-ink font-bold hover:text-ink' : 'text-accent-on hover:bg-white/10 hover:text-white font-medium'
               }`}
             >

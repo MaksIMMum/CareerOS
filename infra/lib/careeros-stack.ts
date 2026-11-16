@@ -41,7 +41,7 @@ interface RouteDef {
   public?: boolean;
 }
 
-const { GET, POST, PUT, DELETE } = apigw.HttpMethod;
+const { GET, POST, PUT, PATCH, DELETE } = apigw.HttpMethod;
 
 /** REST resource served by one Lambda: GET+POST /x and GET+PUT+DELETE /x/{id}. */
 const crud = (id: string, file: string, path: string): RouteDef => ({
@@ -65,6 +65,15 @@ const ROUTES: RouteDef[] = [
       { path: '/analyses', methods: [GET, POST] },
       { path: '/analyses/{id}', methods: [GET] },
       { path: '/analyses/{id}/share', methods: [POST] },
+    ],
+  },
+  // Application tracker: PATCH changes any subset of fields (e.g. only the status on drag-and-drop).
+  {
+    id: 'Applications',
+    file: 'applications.ts',
+    routes: [
+      { path: '/applications', methods: [GET, POST] },
+      { path: '/applications/{id}', methods: [GET, PATCH, DELETE] },
     ],
   },
   // Read-only share card (job title + score before/after, no CV text) for /s/<id> links.
