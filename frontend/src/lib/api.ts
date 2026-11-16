@@ -332,3 +332,84 @@ export const answerInterview = (id: string, data: { index: number; answer: strin
     method: 'POST',
     body: JSON.stringify(data),
   }).then((r) => r.item);
+
+// ------------------------------------------------------------------ Feedback & Donations (Step 8)
+
+export interface FeedbackInput {
+  rating: number;
+  useful?: string;
+  confusing?: string;
+  callRequested?: boolean;
+  contact?: string;
+  context?: string;
+}
+
+export interface FeedbackItem extends FeedbackInput {
+  id: string;
+  sub: string;
+  createdAt: string;
+}
+
+export const submitFeedback = (data: FeedbackInput) =>
+  apiRequest<{ item: FeedbackItem }>('/feedback', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then((r) => r.item);
+
+export const recordDonationClick = (url?: string) =>
+  apiRequest<{ ok: boolean }>('/donations/click', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+
+export const reportDonation = (data: { amount?: number; currency?: string; jarUrl?: string }) =>
+  apiRequest<{ ok: boolean; id: string }>('/donations/report', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const deleteAccount = () =>
+  apiRequest<{ ok: boolean }>('/me', {
+    method: 'DELETE',
+  });
+
+// ------------------------------------------------------------------ Admin Metrics (Step 8)
+
+export interface AdminUserMetric {
+  id: string;
+  sub: string;
+  email: string;
+  isTeam: boolean;
+  source: string;
+  src?: string;
+  createdAt: string;
+  analysesCount: number;
+  interviewsCount: number;
+  applicationsCount: number;
+  daysActive: number;
+  hasRealUse: boolean;
+  hasReturn: boolean;
+}
+
+export interface AdminMetrics {
+  totals: {
+    signups: number;
+    realUse: number;
+    realUsePercent: number;
+    returnUsers: number;
+    returnPercent: number;
+    donationClicks: number;
+    donationsReported: number;
+    totalDonatedAmount: number;
+    feedbackCount: number;
+  };
+  signupsByDay: Record<string, number>;
+  signupsBySource: Record<string, number>;
+  signupsBySrc: Record<string, number>;
+  users: AdminUserMetric[];
+  feedback: (FeedbackItem & { isTeam: boolean })[];
+  donations: { id: string; sub: string; amount?: number; currency: string; createdAt: string; isTeam: boolean }[];
+}
+
+export const fetchAdminMetrics = () => apiRequest<AdminMetrics>('/admin/metrics');
+

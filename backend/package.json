@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/handlers/health.ts src/handlers/me.ts src/handlers/cvs.ts src/handlers/vacancies.ts src/handlers/analyses.ts src/handlers/public-share.ts src/handlers/applications.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist/handlers --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build": "esbuild src/handlers/health.ts src/handlers/me.ts src/handlers/cvs.ts src/handlers/vacancies.ts src/handlers/analyses.ts src/handlers/public-share.ts src/handlers/applications.ts src/handlers/interviews.ts src/handlers/feedback.ts src/handlers/donations.ts src/handlers/admin.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist/handlers --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1169.0",
     "@aws-sdk/client-dynamodb": "^3.1169.0",
     "@aws-sdk/client-ssm": "^3.1169.0",
     "@aws-sdk/lib-dynamodb": "^3.1169.0",

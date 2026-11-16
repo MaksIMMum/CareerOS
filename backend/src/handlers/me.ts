@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
-import { GetCommand, PutCommand, type DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, QueryCommand, DeleteCommand, type DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { CognitoIdentityProviderClient, AdminDeleteUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { docClient, TABLE_NAME } from '../lib/dynamo.js';
 import { logEvent } from '../lib/events.js';
 
@@ -47,6 +48,34 @@ export function normalizeSrc(value: unknown): string | undefined {
   return cleaned || undefined;
 }
 
+export async function recordLoginDay(
+  sub: string,
+  client: Pick<DynamoDBDocumentClient, 'send'> = docClient,
+  tableName: string = TABLE_NAME,
+): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    await client.send(
+      new PutCommand({
+        TableName: tableName,
+        Item: {
+          PK: `USER#${sub}`,
+          SK: `LOGINDAY#${today}`,
+          date: today,
+          createdAt: new Date().toISOString(),
+        },
+        ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+      }),
+    );
+    await logEvent(sub, 'LOGIN_DAY', { date: today }, client, tableName);
+    return true;
+  } catch (err) {
+    if (isConditionalCheckFailed(err)) return false;
+    console.warn('Failed to record LOGIN_DAY', err);
+    return false;
+  }
+}
+
 function isConditionalCheckFailed(err: unknown): boolean {
   return (err as { name?: string } | null)?.name === 'ConditionalCheckFailedException';
 }
@@ -87,6 +116,8 @@ export async function handleMeRequest(
         body: JSON.stringify({ error: 'User profile not found' }),
       };
     }
+
+    await recordLoginDay(sub, client, tableName);
 
     return {
       statusCode: 200,
@@ -164,11 +195,63 @@ export async function handleMeRequest(
       client,
       tableName,
     );
+    await recordLoginDay(sub, client, tableName);
 
     return {
       statusCode: 201,
       headers,
       body: JSON.stringify({ profile: newProfile }),
+    };
+  }
+
+  if (method === 'DELETE') {
+    // Delete all items under USER#<sub>
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
+    do {
+      const qRes = await client.send(
+        new QueryCommand({
+          TableName: tableName,
+          KeyConditionExpression: 'PK = :pk',
+          ExpressionAttributeValues: { ':pk': profilePK },
+          ExclusiveStartKey: lastEvaluatedKey,
+        }),
+      );
+
+      if (qRes.Items && qRes.Items.length > 0) {
+        for (const item of qRes.Items) {
+          await client.send(
+            new DeleteCommand({
+              TableName: tableName,
+              Key: { PK: item.PK, SK: item.SK },
+            }),
+          );
+        }
+      }
+      lastEvaluatedKey = qRes.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastEvaluatedKey);
+
+    // Delete Cognito user if USER_POOL_ID is provided
+    const userPoolId = process.env.USER_POOL_ID;
+    if (userPoolId) {
+      try {
+        const cognito = new CognitoIdentityProviderClient({});
+        await cognito.send(
+          new AdminDeleteUserCommand({
+            UserPoolId: userPoolId,
+            Username: sub,
+          }),
+        );
+      } catch (cognitoErr) {
+        console.error('Failed to delete user in Cognito', cognitoErr);
+      }
+    }
+
+    await logEvent(sub, 'USER_DELETED', { sub }, client, tableName);
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ ok: true, message: 'Account and all data deleted' }),
     };
   }
 

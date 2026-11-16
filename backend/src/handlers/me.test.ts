@@ -75,8 +75,8 @@ describe('me handler', () => {
         lang: 'uk',
       }),
     );
-    // Verified 3 DynamoDB calls: GetCommand, PutCommand for Profile, PutCommand for Event
-    expect(mockSend).toHaveBeenCalledTimes(3);
+    // Verified 5 DynamoDB calls: GetCommand (existing check), PutCommand for Profile, PutCommand for SIGNUP event, PutCommand for LOGINDAY, PutCommand for LOGIN_DAY event
+    expect(mockSend).toHaveBeenCalledTimes(5);
   });
 
   const postEvent = (body: unknown) =>
@@ -165,5 +165,36 @@ describe('me handler', () => {
     await expect(
       handleMeRequest(postEvent({}), { send: mockSend } as any, 'test-table'),
     ).rejects.toThrow('ProvisionedThroughputExceededException');
+  });
+
+  it('DELETE /me queries and deletes all items under USER#sub and logs USER_DELETED', async () => {
+    const deletes: any[] = [];
+    const mockSend = vi.fn().mockImplementation((cmd: any) => {
+      // QueryCommand
+      if (cmd.input?.KeyConditionExpression) {
+        return Promise.resolve({
+          Items: [
+            { PK: 'USER#sub-456', SK: 'PROFILE' },
+            { PK: 'USER#sub-456', SK: 'CV#123' },
+          ],
+        });
+      }
+      // DeleteCommand
+      if (cmd.input?.Key) {
+        deletes.push(cmd.input.Key);
+        return Promise.resolve({});
+      }
+      // PutCommand for USER_DELETED event
+      return Promise.resolve({});
+    });
+
+    const deleteEvent = {
+      requestContext: { ...authorizedContext(), http: { method: 'DELETE' } },
+    } as unknown as APIGatewayProxyEventV2;
+
+    const res = (await handleMeRequest(deleteEvent, { send: mockSend } as any, 'test-table')) as any;
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ ok: true, message: 'Account and all data deleted' });
+    expect(deletes).toHaveLength(2);
   });
 });

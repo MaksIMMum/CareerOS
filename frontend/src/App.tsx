@@ -17,6 +17,8 @@ import { TrackerPage } from './pages/TrackerPage.js';
 import { InterviewsPage } from './pages/InterviewsPage.js';
 import { NewInterviewPage } from './pages/NewInterviewPage.js';
 import { InterviewPage } from './pages/InterviewPage.js';
+import { AdminPage } from './pages/AdminPage.js';
+import { PrivacyPage } from './pages/PrivacyPage.js';
 
 /** Every /app page: requires a session, shares the app header. */
 function AppLayout() {
@@ -43,6 +45,32 @@ export function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         {/* Public share card — no login */}
         <Route path="/s/:shareId" element={<SharePage />} />
+        {/* Public privacy policy */}
+        <Route
+          path="/privacy"
+          element={
+            <div className="min-h-screen flex flex-col bg-canvas">
+              <AppHeader />
+              <div className="flex-1 flex flex-col">
+                <PrivacyPage />
+              </div>
+            </div>
+          }
+        />
+        {/* Admin metrics dashboard — Cognito admins only */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen flex flex-col bg-canvas">
+                <AppHeader />
+                <div className="flex-1 flex flex-col">
+                  <AdminPage />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
         <Route path="/app" element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="cvs" element={<CvsPage />} />
@@ -53,6 +81,8 @@ export function App() {
           <Route path="interviews" element={<InterviewsPage />} />
           <Route path="interviews/new" element={<NewInterviewPage />} />
           <Route path="interviews/:id" element={<InterviewPage />} />
+          <Route path="admin" element={<Navigate to="/admin" replace />} />
+          <Route path="privacy" element={<Navigate to="/privacy" replace />} />
           {/* Any other /app/* path still requires a session, then lands on the overview */}
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Route>

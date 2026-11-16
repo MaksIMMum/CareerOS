@@ -55,7 +55,7 @@ const crud = (id: string, file: string, path: string): RouteDef => ({
 
 const ROUTES: RouteDef[] = [
   { id: 'Health', file: 'health.ts', routes: [{ path: '/health', methods: [GET] }], public: true },
-  { id: 'Me', file: 'me.ts', routes: [{ path: '/me', methods: [GET, POST] }] },
+  { id: 'Me', file: 'me.ts', routes: [{ path: '/me', methods: [GET, POST, DELETE] }] },
   crud('Cvs', 'cvs.ts', '/cvs'),
   crud('Vacancies', 'vacancies.ts', '/vacancies'),
   {
@@ -85,6 +85,27 @@ const ROUTES: RouteDef[] = [
       { path: '/applications', methods: [GET, POST] },
       { path: '/applications/{id}', methods: [GET, PATCH, DELETE] },
     ],
+  },
+  // In-app user feedback
+  {
+    id: 'Feedback',
+    file: 'feedback.ts',
+    routes: [{ path: '/feedback', methods: [POST] }],
+  },
+  // Donations telemetry
+  {
+    id: 'Donations',
+    file: 'donations.ts',
+    routes: [
+      { path: '/donations/click', methods: [POST] },
+      { path: '/donations/report', methods: [POST] },
+    ],
+  },
+  // Admin metrics dashboard
+  {
+    id: 'Admin',
+    file: 'admin.ts',
+    routes: [{ path: '/admin/metrics', methods: [GET] }],
   },
   // Read-only share card (job title + score before/after, no CV text) for /s/<id> links.
   {
@@ -275,6 +296,7 @@ export class CareerOsStack extends cdk.Stack {
         depsLockFilePath: path.join(REPO_ROOT, 'package-lock.json'),
         environment: {
           TABLE_NAME: table.tableName,
+          USER_POOL_ID: userPool.userPoolId,
           GEMINI_KEY_PARAM,
           GEMINI_MODEL,
           NODE_OPTIONS: '--enable-source-maps',
@@ -302,6 +324,13 @@ export class CareerOsStack extends cdk.Stack {
           actions: ['kms:Decrypt'],
           resources: ['*'],
           conditions: { StringEquals: { 'kms:ViaService': `ssm.${this.region}.amazonaws.com` } },
+        }),
+      );
+      // Allow account self-deletion (Cognito user deletion)
+      fn.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ['cognito-idp:AdminDeleteUser'],
+          resources: [userPool.userPoolArn],
         }),
       );
 

@@ -124,6 +124,16 @@ describe('CareerOsStack', () => {
       RouteKey: 'POST /me',
       AuthorizationType: 'JWT',
     });
+    t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'DELETE /me',
+      AuthorizationType: 'JWT',
+    });
+  });
+
+  it('protects feedback, donation, and admin metrics routes with the JWT authorizer', () => {
+    for (const key of ['POST /feedback', 'POST /donations/click', 'POST /donations/report', 'GET /admin/metrics']) {
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: key, AuthorizationType: 'JWT' });
+    }
   });
 
   it('protects the CV and vacancy CRUD routes with the JWT authorizer', () => {

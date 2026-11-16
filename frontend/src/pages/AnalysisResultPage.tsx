@@ -8,6 +8,8 @@ import { LIMITS } from '../lib/limits.js';
 import { ErrorAlert, Icon, OkAlert, Rings, ScoreRing } from '../components/ui.js';
 import type { ApplicationPrefill } from '../components/ApplicationDialog.js';
 import type { InterviewPrefill } from './NewInterviewPage.js';
+import { DonationPrompt } from '../components/DonationPrompt.js';
+import { FeedbackCard } from '../components/FeedbackCard.js';
 
 const Chips: React.FC<{ items: string[]; cls: string; empty: string }> = ({ items, cls, empty }) =>
   items.length === 0 ? (
@@ -344,6 +346,9 @@ export const AnalysisResultPage: React.FC = () => {
             </div>
           )}
         </section>
+
+        <DonationPrompt className="mt-8" />
+        <FeedbackCard context="analysis" className="mt-6" />
       </main>
     </div>
   );

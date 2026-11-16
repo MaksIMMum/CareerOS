@@ -3,16 +3,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import { LangSwitch, Logo } from './ui.js';
+import { FeedbackModal } from './FeedbackModal.js';
 
 const initials = (email: string) => email.replace(/[^A-Za-zА-Яа-яІіЇїЄєҐґ]/g, '').slice(0, 2).toUpperCase() || '··';
 
 /** Header of the signed-in app: section tabs, language and a profile menu with sign out. */
 export const AppHeader: React.FC = () => {
   const { t } = useTranslation();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -44,10 +46,39 @@ export const AppHeader: React.FC = () => {
     { to: '/app/interviews', label: t('nav.interviews'), active: pathname.startsWith('/app/interviews') },
   ];
 
+  if (isAdmin) {
+    tabs.push({ to: '/admin', label: t('nav.admin'), active: pathname.startsWith('/admin') });
+  }
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
+
+  if (!user) {
+    return (
+      <header className="bg-accent text-white sticky top-0 z-20">
+        <div className="max-w-[1240px] mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between">
+          <Logo to="/" size={30} tone="onBlue" />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-[13px] font-semibold transition-colors"
+            >
+              <span>💬</span>
+              <span className="hidden sm:inline">{t('feedback.button')}</span>
+            </button>
+            <LangSwitch compact onBlue />
+            <Link to="/signin" className="btn btn-sm bg-sun text-ink font-bold hover:bg-[#FFCF1F]">
+              {t('nav.signIn')}
+            </Link>
+          </div>
+        </div>
+        <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      </header>
+    );
+  }
 
   return (
     <header className="bg-accent text-white sticky top-0 z-20">
@@ -71,6 +102,14 @@ export const AppHeader: React.FC = () => {
           ))}
         </nav>
         <div className="ml-auto md:ml-0 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            className="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-[13px] font-semibold transition-colors"
+          >
+            <span>💬</span>
+            <span className="hidden sm:inline">{t('feedback.button')}</span>
+          </button>
           <LangSwitch compact onBlue />
           <div className="relative" ref={menuRef}>
             <button
@@ -89,6 +128,26 @@ export const AppHeader: React.FC = () => {
                   <p className="text-xs text-ink-muted">{t('nav.signedInAs')}</p>
                   <p className="text-sm font-semibold text-ink truncate">{email}</p>
                 </div>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="w-full flex items-center gap-2 px-3 min-h-[40px] rounded-lg text-[14px] font-medium text-ink hover:bg-canvas"
+                  >
+                    <span>📊</span>
+                    <span>{t('nav.admin')}</span>
+                  </Link>
+                )}
+                <Link
+                  to="/privacy"
+                  role="menuitem"
+                  onClick={() => setMenuOpen(false)}
+                  className="w-full flex items-center gap-2 px-3 min-h-[40px] rounded-lg text-[14px] font-medium text-ink hover:bg-canvas"
+                >
+                  <span>🛡️</span>
+                  <span>{t('nav.privacy')}</span>
+                </Link>
                 <button
                   type="button"
                   role="menuitem"
@@ -102,6 +161,7 @@ export const AppHeader: React.FC = () => {
           </div>
         </div>
       </div>
+      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </header>
   );
 };

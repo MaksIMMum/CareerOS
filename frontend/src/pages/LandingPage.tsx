@@ -441,6 +441,7 @@ export const LandingPage: React.FC = () => {
           <nav aria-label={t('nav.footerNav')} className="flex gap-6">
             <a href="#how" className="text-accent">{t('nav.how')}</a>
             <a href="#features" className="text-accent">{t('nav.features')}</a>
+            <Link to="/privacy" className="text-accent">{t('nav.privacy')}</Link>
           </nav>
         </div>
       </footer>
