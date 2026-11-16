@@ -4,6 +4,7 @@ import { APP_STATUSES, type Application, type ApplicationInput, type AppStatus, 
 import { LIMITS } from '../lib/limits.js';
 import { localToday } from '../lib/tracker.js';
 import { ErrorAlert, Icon } from './ui.js';
+import { apiErrorMessage } from '../lib/apiErrors.js';
 
 /** What "Add to tracker" on an analysis hands over. */
 export interface ApplicationPrefill {
@@ -78,7 +79,7 @@ export const ApplicationDialog: React.FC<Props> = ({ open, cvs, duplicate, onClo
     try {
       await onSave({ ...form, title: form.title.trim(), company: form.company.trim(), notes: form.notes.trim() }, editing);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors.generic'));
+      setError(apiErrorMessage(err, t));
       setBusy(null);
     }
   };
@@ -90,7 +91,7 @@ export const ApplicationDialog: React.FC<Props> = ({ open, cvs, duplicate, onClo
     try {
       await onDelete(editing);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors.generic'));
+      setError(apiErrorMessage(err, t));
       setBusy(null);
     }
   };

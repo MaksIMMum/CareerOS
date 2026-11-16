@@ -15,6 +15,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "deploy": "npm run deploy --workspace=infra",
+    "smoke": "node scripts/smoke.mjs",
     "set-gemini-key": "bash infra/scripts/set-gemini-key.sh"
   },
   "devDependencies": {

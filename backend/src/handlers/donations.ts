@@ -9,11 +9,11 @@ import { uuidv7 } from '../lib/ids.js';
 export const donationReportSchema = z.object({
   amount: z.number().positive().max(100000).optional(),
   currency: z.string().max(10).default('UAH'),
-  jarUrl: z.string().max(500).optional(),
+  jarUrl: z.url({ protocol: /^https$/ }).max(500).optional(),
 });
 
 export const donationClickSchema = z.object({
-  url: z.string().max(500).optional(),
+  url: z.url({ protocol: /^https$/ }).max(500).optional(),
 });
 
 export function createDonationsHandler(

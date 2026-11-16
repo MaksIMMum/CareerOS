@@ -244,12 +244,16 @@ export class CareerOsStack extends cdk.Stack {
       userPoolClients: [userPoolClient],
     });
 
+    // CORS is locked to the CloudFront site. `-c allowLocalDev=true` (ALLOW_LOCAL_DEV=1 npm run deploy)
+    // also allows http://localhost:5173, for running the frontend locally against this API.
+    const allowLocalDev = String(this.node.tryGetContext('allowLocalDev') ?? '') === 'true';
+
     const httpApi = (this.httpApi = new apigw.HttpApi(this, 'HttpApi', {
       apiName: 'careeros-api',
       createDefaultStage: false,
       defaultAuthorizer: jwtAuthorizer,
       corsPreflight: {
-        allowOrigins: [siteUrl, LOCAL_DEV_ORIGIN],
+        allowOrigins: allowLocalDev ? [siteUrl, LOCAL_DEV_ORIGIN] : [siteUrl],
         allowMethods: [
           apigw.CorsHttpMethod.GET,
           apigw.CorsHttpMethod.POST,

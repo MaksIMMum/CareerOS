@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchAdminMetrics, type AdminMetrics } from '../lib/api.js';
 import { fillDays } from '../lib/adminChart.js';
+import { apiErrorMessage } from '../lib/apiErrors.js';
 
 export const AdminPage: React.FC = () => {
   const { t } = useTranslation();
@@ -14,7 +15,7 @@ export const AdminPage: React.FC = () => {
     fetchAdminMetrics()
       .then(setMetrics)
       .catch((err) => {
-        setError(err.status === 403 ? t('adminPage.forbidden') : err.message);
+        setError(err.status === 403 ? t('adminPage.forbidden') : apiErrorMessage(err, t));
       })
       .finally(() => setLoading(false));
   }, [t]);
@@ -139,7 +140,8 @@ export const AdminPage: React.FC = () => {
   if (!filtered) return null;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10 space-y-8">
+    // w-full + min-w-0: the wide users table scrolls inside its box instead of widening the page.
+    <main className="w-full min-w-0 max-w-6xl mx-auto px-4 py-8 sm:py-10 space-y-8">
       {/* Top Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
@@ -174,7 +176,7 @@ export const AdminPage: React.FC = () => {
 
       {/* Product Signals (One-Pager targets comparison) */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-4">
           {t('adminPage.signalsTitle')}
         </h2>
 
@@ -200,7 +202,7 @@ export const AdminPage: React.FC = () => {
               <span className="text-3xl font-extrabold text-slate-900">{filtered.totals.realUsePercent}%</span>
               <span className="text-xs text-slate-500 font-medium">{t('adminPage.usersCount', { count: filtered.totals.realUse })}</span>
             </div>
-            <p className="mt-1 text-[11px] text-slate-400">{t('adminPage.realUseSub')}</p>
+            <p className="mt-1 text-[11px] text-slate-500">{t('adminPage.realUseSub')}</p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -214,7 +216,7 @@ export const AdminPage: React.FC = () => {
               <span className="text-3xl font-extrabold text-slate-900">{filtered.totals.returnPercent}%</span>
               <span className="text-xs text-slate-500 font-medium">{t('adminPage.usersCount', { count: filtered.totals.returnUsers })}</span>
             </div>
-            <p className="mt-1 text-[11px] text-slate-400">{t('adminPage.returnSub')}</p>
+            <p className="mt-1 text-[11px] text-slate-500">{t('adminPage.returnSub')}</p>
           </div>
         </div>
       </div>
@@ -249,7 +251,7 @@ export const AdminPage: React.FC = () => {
               <h3 className="font-bold text-slate-900 text-sm">{t('adminPage.feedbackTitle')}</h3>
             </div>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-              {filtered.feedback.length} items
+              {t('adminPage.itemsCount', { count: filtered.feedback.length })}
             </span>
           </div>
 
@@ -298,7 +300,7 @@ export const AdminPage: React.FC = () => {
           </h3>
           <div className="space-y-2">
             {Object.keys(filtered.signupsBySrc).length === 0 ? (
-              <p className="text-xs text-slate-400 py-2">{t('adminPage.noData')}</p>
+              <p className="text-xs text-slate-500 py-2">{t('adminPage.noData')}</p>
             ) : (
               Object.entries(filtered.signupsBySrc).map(([tag, count]) => (
                 <div key={tag} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 last:border-none">
@@ -322,7 +324,7 @@ export const AdminPage: React.FC = () => {
               <div key={f.id} className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-xs space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-amber-500">{'★'.repeat(f.rating)}</span>
-                  <span className="text-slate-400 text-[11px]">{new Date(f.createdAt).toLocaleDateString()}</span>
+                  <span className="text-slate-500 text-[11px]">{new Date(f.createdAt).toLocaleDateString()}</span>
                 </div>
                 {f.useful && (
                   <p className="text-slate-700">
@@ -353,11 +355,11 @@ export const AdminPage: React.FC = () => {
             {t('adminPage.usersTableTitle')}
           </h3>
           <span className="text-xs font-semibold text-slate-500">
-            {filtered.users.length} cohort users
+            {t('adminPage.cohortCount', { count: filtered.users.length })}
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={t('adminPage.usersTableTitle')}>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
               <tr>
@@ -392,19 +394,19 @@ export const AdminPage: React.FC = () => {
                   <td className="px-4 py-3 text-center">
                     {u.hasRealUse ? (
                       <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full text-[11px]">
-                        ✓ Yes
+                        ✓ {t('adminPage.yes')}
                       </span>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-slate-500">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {u.hasReturn ? (
                       <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full text-[11px]">
-                        ✓ Return
+                        ✓ {t('adminPage.returnYes')}
                       </span>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-slate-500">—</span>
                     )}
                   </td>
                 </tr>
@@ -413,7 +415,7 @@ export const AdminPage: React.FC = () => {
           </table>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 
@@ -432,7 +434,7 @@ const SignupsChart: React.FC<{ byDay: Record<string, number> }> = ({ byDay }) =>
     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
       <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3">{t('adminPage.dayTimeline')}</h3>
       {rows.length === 0 ? (
-        <p className="text-xs text-slate-400 py-2">{t('adminPage.noData')}</p>
+        <p className="text-xs text-slate-500 py-2">{t('adminPage.noData')}</p>
       ) : (
         <ul className="space-y-1.5 max-h-[420px] overflow-y-auto">
           {rows.map((r) => (

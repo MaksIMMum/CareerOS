@@ -67,7 +67,7 @@ export const SignUpAside: React.FC<{ score: number }> = ({ score }) => {
               <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-[32px]">{score}</div>
             </div>
             <div className="flex flex-col gap-1.5 items-start">
-              <span className="chip-ok text-xs px-2.5 py-[5px]">Test cases</span>
+              <span className="chip-ok text-xs px-2.5 py-[5px]">{t('auth.aside.skillTestCases')}</span>
               <span className="chip-miss text-xs px-2.5 py-[5px] animate-pop1">Postman</span>
               <span className="chip-miss text-xs px-2.5 py-[5px] animate-pop2">SQL</span>
               <span className="chip-miss text-xs px-2.5 py-[5px] animate-pop3">Jira</span>
@@ -169,8 +169,8 @@ export const AuthDark: React.FC<{ topRight?: React.ReactNode; children: React.Re
       <Logo to="/" tone="onDark" />
       {topRight}
     </div>
-    <div className="relative flex-1 flex items-center justify-center py-10 sm:py-12">
+    <main className="relative flex-1 flex items-center justify-center py-10 sm:py-12">
       <div className="w-full max-w-[480px]">{children}</div>
-    </div>
+    </main>
   </div>
 );

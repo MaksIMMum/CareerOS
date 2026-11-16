@@ -127,7 +127,7 @@ export const NewAnalysisPage: React.FC = () => {
               {t('analysis.history')} →
             </Link>
             <div className="px-[18px] py-3.5 rounded-2xl bg-white/15">
-              <p className="mb-1.5 font-mono text-xs text-accent-on">{t('analysis.quotaLabel')}</p>
+              <p className="mb-1.5 font-mono text-xs text-white">{t('analysis.quotaLabel')}</p>
               <p className="font-mono font-bold text-base">{t('analysis.quotaValue', { limit: 10 })}</p>
             </div>
           </div>

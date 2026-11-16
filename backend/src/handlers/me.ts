@@ -3,6 +3,7 @@ import { GetCommand, PutCommand, QueryCommand, DeleteCommand, type DynamoDBDocum
 import { CognitoIdentityProviderClient, AdminDeleteUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { docClient, TABLE_NAME } from '../lib/dynamo.js';
 import { logEvent } from '../lib/events.js';
+import { withErrorHandling } from '../lib/http.js';
 
 export interface UserProfile {
   PK: string; // USER#<sub>
@@ -290,6 +291,5 @@ export async function handleMeRequest(
   };
 }
 
-export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
-  return handleMeRequest(event);
-};
+// Unexpected errors become a plain `{ error: 'internal_error' }` 500 (details only in the logs).
+export const handler = withErrorHandling((event) => handleMeRequest(event));

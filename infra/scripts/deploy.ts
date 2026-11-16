@@ -9,7 +9,8 @@
  * Usage:
  *   ALERT_EMAIL=you@example.com npm run deploy
  *   npm run deploy -- --alert-email you@example.com
- * Optional: TEAM_EMAILS=a@x.com,b@y.com (team accounts the /admin page can exclude).
+ * Optional: TEAM_EMAILS=a@x.com,b@y.com (team accounts the /admin page can exclude),
+ *           ALLOW_LOCAL_DEV=1 (also allow http://localhost:5173 in CORS, for local frontend dev).
  */
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -61,6 +62,7 @@ function cdkDeploy(alertEmail: string): void {
       '-c',
       `alertEmail=${alertEmail}`,
       ...(TEAM_EMAILS ? ['-c', `teamEmails=${TEAM_EMAILS}`] : []),
+      ...(process.env.ALLOW_LOCAL_DEV === '1' ? ['-c', 'allowLocalDev=true'] : []),
     ],
     INFRA_DIR,
   );
