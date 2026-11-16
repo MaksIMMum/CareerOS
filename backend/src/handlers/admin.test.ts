@@ -1,8 +1,33 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createAdminHandler } from './admin.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createAdminHandler, getTeamEmails, parseGroups } from './admin.js';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 
 describe('admin metrics handler', () => {
+  beforeEach(() => {
+    process.env.TEAM_EMAILS = 'team@example.com, Second@Example.com';
+  });
+
+  it('reads team e-mails only from TEAM_EMAILS (nothing hardcoded)', () => {
+    expect(getTeamEmails()).toEqual(['team@example.com', 'second@example.com']);
+    expect(getTeamEmails('')).toEqual([]);
+  });
+
+  it('parses the groups claim in the HTTP API string format and as an array', () => {
+    expect(parseGroups('[admins]')).toEqual(['admins']);
+    expect(parseGroups('[testers admins]')).toEqual(['testers', 'admins']);
+    expect(parseGroups(['admins'])).toEqual(['admins']);
+    expect(parseGroups(undefined)).toEqual([]);
+    expect(parseGroups('[administrators]')).toEqual(['administrators']);
+  });
+
+  it('accepts an admin whose groups claim arrives as the string "[admins]"', async () => {
+    const handler = createAdminHandler({ send: vi.fn().mockResolvedValue({ Items: [] }) } as any, 'test-table');
+    const event = {
+      requestContext: { ...adminContext(), authorizer: { jwt: { claims: { sub: 'a', 'cognito:groups': '[admins]' }, scopes: [] } } },
+    } as unknown as APIGatewayProxyEventV2;
+    expect(((await handler(event)) as any).statusCode).toBe(200);
+  });
+
   const adminContext = (sub = 'admin-1', groups: string[] = ['admins']) => ({
     http: { method: 'GET', path: '/admin/metrics', protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'test' },
     authorizer: {
@@ -38,7 +63,7 @@ describe('admin metrics handler', () => {
         PK: 'USER#sub-2',
         SK: 'PROFILE',
         sub: 'sub-2',
-        email: 'maksym.kornatskyy@gmail.com', // team email
+        email: 'team@example.com', // team email (TEAM_EMAILS)
         source: 'telegram',
         createdAt: '2026-11-14T11:00:00.000Z',
       },

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchAdminMetrics, type AdminMetrics } from '../lib/api.js';
+import { fillDays } from '../lib/adminChart.js';
 
 export const AdminPage: React.FC = () => {
   const { t } = useTranslation();
@@ -197,7 +198,7 @@ export const AdminPage: React.FC = () => {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-slate-900">{filtered.totals.realUsePercent}%</span>
-              <span className="text-xs text-slate-500 font-medium">({filtered.totals.realUse} users)</span>
+              <span className="text-xs text-slate-500 font-medium">{t('adminPage.usersCount', { count: filtered.totals.realUse })}</span>
             </div>
             <p className="mt-1 text-[11px] text-slate-400">{t('adminPage.realUseSub')}</p>
           </div>
@@ -211,7 +212,7 @@ export const AdminPage: React.FC = () => {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-slate-900">{filtered.totals.returnPercent}%</span>
-              <span className="text-xs text-slate-500 font-medium">({filtered.totals.returnUsers} users)</span>
+              <span className="text-xs text-slate-500 font-medium">{t('adminPage.usersCount', { count: filtered.totals.returnUsers })}</span>
             </div>
             <p className="mt-1 text-[11px] text-slate-400">{t('adminPage.returnSub')}</p>
           </div>
@@ -254,7 +255,7 @@ export const AdminPage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60">
-              <span className="block text-[11px] text-slate-500 mb-1">{t('adminPage.rating')} avg</span>
+              <span className="block text-[11px] text-slate-500 mb-1">{t('adminPage.avgRating')}</span>
               <span className="text-lg font-bold text-slate-900">
                 {filtered.feedback.length > 0
                   ? (filtered.feedback.reduce((sum, f) => sum + f.rating, 0) / filtered.feedback.length).toFixed(1)
@@ -271,6 +272,9 @@ export const AdminPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Sign-ups per day */}
+      <SignupsChart byDay={filtered.signupsByDay} />
 
       {/* Attribution: Source & Campaign breakdown */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -409,6 +413,39 @@ export const AdminPage: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
+  );
+};
+
+/** Horizontal bars, one row per day: readable on a phone and accessible as a plain list. */
+const SignupsChart: React.FC<{ byDay: Record<string, number> }> = ({ byDay }) => {
+  const { t, i18n } = useTranslation();
+  const rows = fillDays(byDay);
+  const max = Math.max(1, ...rows.map((r) => r.count));
+  const fmt = (ymd: string) =>
+    new Date(`${ymd}T00:00:00Z`).toLocaleDateString(i18n.language === 'en' ? 'en-GB' : 'uk-UA', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    });
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3">{t('adminPage.dayTimeline')}</h3>
+      {rows.length === 0 ? (
+        <p className="text-xs text-slate-400 py-2">{t('adminPage.noData')}</p>
+      ) : (
+        <ul className="space-y-1.5 max-h-[420px] overflow-y-auto">
+          {rows.map((r) => (
+            <li key={r.day} className="flex items-center gap-3 text-xs">
+              <span className="w-16 shrink-0 text-slate-500 tabular-nums">{fmt(r.day)}</span>
+              <span className="flex-1 h-4 rounded bg-slate-100 overflow-hidden" aria-hidden="true">
+                <span className="block h-full rounded bg-blue-600" style={{ width: `${(r.count / max) * 100}%` }} />
+              </span>
+              <span className="w-8 shrink-0 text-right font-bold text-slate-900 tabular-nums">{r.count}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

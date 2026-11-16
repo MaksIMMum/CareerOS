@@ -167,34 +167,76 @@ describe('me handler', () => {
     ).rejects.toThrow('ProvisionedThroughputExceededException');
   });
 
-  it('DELETE /me queries and deletes all items under USER#sub and logs USER_DELETED', async () => {
-    const deletes: any[] = [];
-    const mockSend = vi.fn().mockImplementation((cmd: any) => {
-      // QueryCommand
-      if (cmd.input?.KeyConditionExpression) {
-        return Promise.resolve({
-          Items: [
-            { PK: 'USER#sub-456', SK: 'PROFILE' },
-            { PK: 'USER#sub-456', SK: 'CV#123' },
-          ],
-        });
-      }
-      // DeleteCommand
-      if (cmd.input?.Key) {
-        deletes.push(cmd.input.Key);
-        return Promise.resolve({});
-      }
-      // PutCommand for USER_DELETED event
-      return Promise.resolve({});
-    });
-
+  describe('DELETE /me', () => {
     const deleteEvent = {
       requestContext: { ...authorizedContext(), http: { method: 'DELETE' } },
     } as unknown as APIGatewayProxyEventV2;
 
-    const res = (await handleMeRequest(deleteEvent, { send: mockSend } as any, 'test-table')) as any;
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual({ ok: true, message: 'Account and all data deleted' });
-    expect(deletes).toHaveLength(2);
+    function fakeDb() {
+      const deletes: any[] = [];
+      const puts: any[] = [];
+      const send = vi.fn().mockImplementation((cmd: any) => {
+        const name = cmd.constructor.name;
+        if (name === 'QueryCommand' && cmd.input.IndexName === 'GSI1') {
+          return Promise.resolve({
+            Items: [
+              { PK: 'EVENT#2026-11-16', SK: 't1#sub-456#SIGNUP', GSI1PK: 'USER#sub-456' },
+              { PK: 'EVENT#2026-11-16', SK: 't2#sub-456#FEEDBACK', GSI1PK: 'USER#sub-456' },
+            ],
+          });
+        }
+        if (name === 'QueryCommand') {
+          return Promise.resolve({
+            Items: [
+              { PK: 'USER#sub-456', SK: 'PROFILE' },
+              { PK: 'USER#sub-456', SK: 'CV#123' },
+              { PK: 'USER#sub-456', SK: 'ANALYSIS#a1', shareId: 'abcdefghijkl' },
+            ],
+          });
+        }
+        if (name === 'DeleteCommand') deletes.push(cmd.input.Key);
+        if (name === 'PutCommand') puts.push(cmd.input.Item);
+        return Promise.resolve({});
+      });
+      return { send, deletes, puts };
+    }
+
+    it('deletes user items, their events, their public share cards and the Cognito user', async () => {
+      process.env.USER_POOL_ID = 'pool-1';
+      const db = fakeDb();
+      const cognito = { send: vi.fn().mockResolvedValue({}) };
+
+      const res = (await handleMeRequest(deleteEvent, db as any, 'test-table', cognito as any)) as any;
+      expect(res.statusCode).toBe(200);
+      expect(db.deletes).toEqual(
+        expect.arrayContaining([
+          { PK: 'USER#sub-456', SK: 'PROFILE' },
+          { PK: 'USER#sub-456', SK: 'CV#123' },
+          { PK: 'USER#sub-456', SK: 'ANALYSIS#a1' },
+          { PK: 'SHARE#abcdefghijkl', SK: 'SHARE' },
+          { PK: 'EVENT#2026-11-16', SK: 't1#sub-456#SIGNUP' },
+          { PK: 'EVENT#2026-11-16', SK: 't2#sub-456#FEEDBACK' },
+        ]),
+      );
+      expect(db.deletes).toHaveLength(6);
+      expect(db.puts).toHaveLength(0); // nothing new is logged about a deleted user
+      expect(cognito.send.mock.calls[0]![0].input).toEqual({ UserPoolId: 'pool-1', Username: 'sub-456' });
+    });
+
+    it('reports failure (not success) when the Cognito user could not be deleted', async () => {
+      process.env.USER_POOL_ID = 'pool-1';
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const cognito = { send: vi.fn().mockRejectedValue(Object.assign(new Error('x'), { name: 'TooManyRequestsException' })) };
+      const res = (await handleMeRequest(deleteEvent, fakeDb() as any, 'test-table', cognito as any)) as any;
+      expect(res.statusCode).toBe(502);
+      expect(JSON.parse(res.body).error).toBe('delete_incomplete');
+    });
+
+    it('treats an already-deleted Cognito user as done (safe retry)', async () => {
+      process.env.USER_POOL_ID = 'pool-1';
+      const cognito = { send: vi.fn().mockRejectedValue(Object.assign(new Error('x'), { name: 'UserNotFoundException' })) };
+      const res = (await handleMeRequest(deleteEvent, fakeDb() as any, 'test-table', cognito as any)) as any;
+      expect(res.statusCode).toBe(200);
+    });
   });
 });

@@ -195,6 +195,17 @@ describe('CareerOsStack', () => {
     expect(policies).toContain('dynamodb:PutItem');
   });
 
+  it('lets only the /me function delete Cognito users, and only it gets USER_POOL_ID', () => {
+    const policies = Object.values(t.findResources('AWS::IAM::Policy')).filter((p) =>
+      JSON.stringify(p).includes('cognito-idp:AdminDeleteUser'),
+    );
+    expect(policies).toHaveLength(1);
+    const withPool = Object.values(t.findResources('AWS::Lambda::Function')).filter(
+      (f: any) => f.Properties?.Environment?.Variables?.USER_POOL_ID,
+    );
+    expect(withPool).toHaveLength(1);
+  });
+
   it('creates a 1 USD monthly budget when alertEmail is given', () => {
     t.hasResourceProperties('AWS::Budgets::Budget', {
       Budget: Match.objectLike({

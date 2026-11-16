@@ -6,31 +6,33 @@ import type { UserProfile } from './me.js';
 import type { FeedbackRecord } from './feedback.js';
 import type { EventRecord } from '../lib/events.js';
 
-export const DEFAULT_TEAM_EMAILS = [
-  'maksym.kornatskyy@gmail.com',
-  'mrvitalyvolos@gmail.com',
-];
+/**
+ * Team accounts for the "exclude team accounts" filter. Comma-separated e-mails in the
+ * TEAM_EMAILS env var, set at deploy time (never committed: the repository is public).
+ */
+export function getTeamEmails(raw: string | undefined = process.env.TEAM_EMAILS): string[] {
+  return [...new Set((raw ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean))];
+}
 
-export function getTeamEmails(): string[] {
-  const envEmails = process.env.TEAM_EMAILS
-    ? process.env.TEAM_EMAILS.split(',').map((e) => e.trim().toLowerCase())
-    : [];
-  const merged = new Set([...DEFAULT_TEAM_EMAILS, ...envEmails]);
-  return Array.from(merged).filter(Boolean);
+/**
+ * Group names from the `cognito:groups` claim. The HTTP API JWT authorizer passes list claims as
+ * one string like "[admins]" or "[admins testers]"; tests and other callers may pass a real array.
+ */
+export function parseGroups(claim: unknown): string[] {
+  if (Array.isArray(claim)) return claim.map(String);
+  if (typeof claim !== 'string') return [];
+  return claim
+    .replace(/^\[|\]$/g, '')
+    .split(/[\s,]+/)
+    .map((g) => g.trim())
+    .filter(Boolean);
 }
 
 export function assertAdmin(event: APIGatewayProxyEventV2): void {
   const claims = (
     event.requestContext as { authorizer?: { jwt?: { claims?: Record<string, unknown> } } }
   ).authorizer?.jwt?.claims;
-  const groups = claims?.['cognito:groups'];
-  const isAdmin = Array.isArray(groups)
-    ? groups.includes('admins')
-    : typeof groups === 'string'
-      ? groups.split(',').map((g) => g.trim()).includes('admins')
-      : false;
-
-  if (!isAdmin) {
+  if (!parseGroups(claims?.['cognito:groups']).includes('admins')) {
     throw new HttpError(403, 'forbidden', 'Admin access required');
   }
 }

@@ -23,8 +23,8 @@ export const PrivacyPage: React.FC = () => {
       await deleteAccount();
       await signOut();
       navigate('/', { replace: true });
-    } catch (err: any) {
-      setError(err?.message || 'Failed to delete account');
+    } catch {
+      setError(t('privacyPage.deleteError'));
       setDeleting(false);
     }
   };

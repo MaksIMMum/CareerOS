@@ -348,7 +348,7 @@ export const AnalysisResultPage: React.FC = () => {
         </section>
 
         <DonationPrompt className="mt-8" />
-        <FeedbackCard context="analysis" className="mt-6" />
+        <FeedbackCard context="analysis" onceKey="analysis" className="mt-6" />
       </main>
     </div>
   );

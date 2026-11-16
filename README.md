@@ -94,7 +94,8 @@ All routes except `/health` require `Authorization: Bearer <Cognito ID token>`; 
 | Method and path | Purpose |
 | --- | --- |
 | `GET /health` | Public liveness check, `{ "ok": true }` |
-| `GET /me`, `POST /me` | Read / create the profile (first sign-in logs `SIGNUP`) |
+| `GET /me`, `POST /me` | Read / create the profile (first sign-in logs `SIGNUP`; the first request of each day logs `LOGIN_DAY`) |
+| `DELETE /me` | Delete the account: all `USER#<sub>` items, the user's events, public share cards and the Cognito user (`502 delete_incomplete` if anything failed; safe to retry) |
 | `GET /cvs`, `POST /cvs` | List CV versions (without text) / create one `{ name, text }` |
 | `GET /cvs/{id}`, `PUT /cvs/{id}`, `DELETE /cvs/{id}` | Read / replace / delete one CV |
 | `GET /vacancies`, `POST /vacancies` | List / create `{ title, company?, url?, text }` |
@@ -107,6 +108,9 @@ All routes except `/health` require `Authorization: Bearer <Cognito ID token>`; 
 | `POST /interviews` | `{ cvId, vacancyId, lang? }` → mock interview with 6–8 questions (uses 1 of 5 daily interviews) |
 | `GET /interviews`, `GET /interviews/{id}` | Interview history (50 newest, summaries) / questions, answers and outcome |
 | `POST /interviews/{id}/answers` | `{ index, answer, seconds? }` → score, feedback, better answer; `409 wrong_question` if not the next question |
+| `POST /feedback` | `{ rating 1–5, useful?, confusing?, callRequested?, contact?, context? }` → stores `FEEDBACK#<id>`, logs `FEEDBACK` |
+| `POST /donations/click`, `POST /donations/report` | Log `DONATE_CLICK` / store a self-reported donation `{ amount?, currency? }` and log `DONATE_REPORTED` |
+| `GET /admin/metrics` | **Admins only** (Cognito group `admins`, checked in the backend): sign-ups, real use, return, sources, feedback, donations, per-user metrics |
 | `GET /public/shares/{shareId}` | **Public**: job title + score before → after only (no CV text) |
 
 Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`), `unauthorized` (401),
@@ -201,8 +205,24 @@ Flash models take 15–60 s on the free tier, over API Gateway's ~30 s limit.
 ### 3. Deploy the stack and frontend
 
 ```bash
-ALERT_EMAIL=you@example.com npm run deploy
+ALERT_EMAIL=you@example.com TEAM_EMAILS=teammate1@example.com,teammate2@example.com npm run deploy
 ```
+
+`TEAM_EMAILS` (optional) lists the team's own accounts so `/admin` can exclude them from the
+metrics. It is passed at deploy time and never committed, because the repository is public.
+
+The donation prompt links to the CareerOS Monobank jar by default
+(`frontend/src/lib/donation.ts`); set `VITE_DONATION_URL` at build time to use another jar.
+
+**Give someone access to `/admin`** (they must sign out and in again afterwards so their token
+carries the group):
+
+```bash
+aws cognito-idp admin-add-user-to-group --profile carreros --region us-east-1 \
+  --user-pool-id <UserPoolId from the deploy output> --username <their sign-in e-mail> --group-name admins
+```
+
+The `admins` group itself is created by the CDK stack.
 
 The deployment script builds the frontend, deploys `CareerOsStack`, writes the
 CloudFormation outputs to `frontend/.env.production`, then rebuilds and deploys
@@ -244,6 +264,7 @@ Run workflow**. Configure:
 2. CDK bootstrap and the `/careeros/gemini-api-key` SSM parameter in the target account.
 3. Enter the Budget notification email in the workflow's required `alert_email`
    input when starting a deployment.
+4. Optional: a repository secret `TEAM_EMAILS` (comma-separated team e-mails for the `/admin` filter).
 
 The workflow uses short-lived OIDC credentials and does not require long-lived
 AWS access keys in GitHub.

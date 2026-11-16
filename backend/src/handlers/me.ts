@@ -80,10 +80,78 @@ function isConditionalCheckFailed(err: unknown): boolean {
   return (err as { name?: string } | null)?.name === 'ConditionalCheckFailedException';
 }
 
+type Client = Pick<DynamoDBDocumentClient, 'send'>;
+type Cognito = Pick<CognitoIdentityProviderClient, 'send'>;
+
+/** Every key of a query, following pagination. */
+async function queryKeys(
+  client: Client,
+  input: { TableName: string; IndexName?: string; KeyConditionExpression: string; ExpressionAttributeValues: Record<string, unknown> },
+): Promise<Record<string, unknown>[]> {
+  const items: Record<string, unknown>[] = [];
+  let start: Record<string, unknown> | undefined;
+  do {
+    const res = await client.send(new QueryCommand({ ...input, ExclusiveStartKey: start }));
+    items.push(...(res.Items ?? []));
+    start = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+  } while (start);
+  return items;
+}
+
+/**
+ * "Delete my account and data" (privacy page): removes EVERYTHING about the user —
+ *  - all USER#<sub> items (profile, CVs, vacancies, analyses, interviews, applications, feedback,
+ *    donations, quota, login days);
+ *  - the public share cards of their analyses (SHARE#<shareId>), so old links stop working;
+ *  - their analytics events (EVENT#… found through GSI1PK = USER#<sub>), which hold the sign-up
+ *    e-mail and feedback texts/contacts;
+ *  - the Cognito user, last, so a failed run can simply be retried while the session is valid.
+ * Nothing new is logged about the deleted user.
+ */
+export async function deleteAccount(
+  sub: string,
+  client: Client = docClient,
+  tableName: string = TABLE_NAME,
+  cognito?: Cognito,
+  userPoolId: string | undefined = process.env.USER_POOL_ID,
+): Promise<{ deleted: number }> {
+  const pk = `USER#${sub}`;
+  const own = await queryKeys(client, {
+    TableName: tableName,
+    KeyConditionExpression: 'PK = :pk',
+    ExpressionAttributeValues: { ':pk': pk },
+  });
+  const events = await queryKeys(client, {
+    TableName: tableName,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk',
+    ExpressionAttributeValues: { ':pk': pk },
+  });
+  const shares = own
+    .filter((i) => String(i.SK).startsWith('ANALYSIS#') && typeof i.shareId === 'string')
+    .map((i) => ({ PK: `SHARE#${String(i.shareId)}`, SK: 'SHARE' }));
+
+  const keys = [...shares, ...events, ...own].map((i) => ({ PK: i.PK, SK: i.SK }));
+  for (const Key of keys) {
+    await client.send(new DeleteCommand({ TableName: tableName, Key }));
+  }
+
+  if (!userPoolId) throw new Error('USER_POOL_ID is not configured');
+  try {
+    await (cognito ?? new CognitoIdentityProviderClient({})).send(
+      new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: sub }),
+    );
+  } catch (err) {
+    if ((err as { name?: string }).name !== 'UserNotFoundException') throw err; // already gone: fine
+  }
+  return { deleted: keys.length };
+}
+
 export async function handleMeRequest(
   event: APIGatewayProxyEventV2,
-  client: Pick<DynamoDBDocumentClient, 'send'> = docClient,
+  client: Client = docClient,
   tableName: string = TABLE_NAME,
+  cognito?: Cognito,
 ): Promise<APIGatewayProxyResultV2> {
   const method = event.requestContext.http.method.toUpperCase();
   const claims = (event.requestContext as any)?.authorizer?.jwt?.claims;
@@ -205,54 +273,14 @@ export async function handleMeRequest(
   }
 
   if (method === 'DELETE') {
-    // Delete all items under USER#<sub>
-    let lastEvaluatedKey: Record<string, unknown> | undefined;
-    do {
-      const qRes = await client.send(
-        new QueryCommand({
-          TableName: tableName,
-          KeyConditionExpression: 'PK = :pk',
-          ExpressionAttributeValues: { ':pk': profilePK },
-          ExclusiveStartKey: lastEvaluatedKey,
-        }),
-      );
-
-      if (qRes.Items && qRes.Items.length > 0) {
-        for (const item of qRes.Items) {
-          await client.send(
-            new DeleteCommand({
-              TableName: tableName,
-              Key: { PK: item.PK, SK: item.SK },
-            }),
-          );
-        }
-      }
-      lastEvaluatedKey = qRes.LastEvaluatedKey as Record<string, unknown> | undefined;
-    } while (lastEvaluatedKey);
-
-    // Delete Cognito user if USER_POOL_ID is provided
-    const userPoolId = process.env.USER_POOL_ID;
-    if (userPoolId) {
-      try {
-        const cognito = new CognitoIdentityProviderClient({});
-        await cognito.send(
-          new AdminDeleteUserCommand({
-            UserPoolId: userPoolId,
-            Username: sub,
-          }),
-        );
-      } catch (cognitoErr) {
-        console.error('Failed to delete user in Cognito', cognitoErr);
-      }
+    try {
+      await deleteAccount(sub, client, tableName, cognito);
+    } catch (err) {
+      // Never claim success when something was left behind; deleting again is safe (idempotent).
+      console.error('Account deletion incomplete', { name: (err as Error).name });
+      return { statusCode: 502, headers, body: JSON.stringify({ error: 'delete_incomplete' }) };
     }
-
-    await logEvent(sub, 'USER_DELETED', { sub }, client, tableName);
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ ok: true, message: 'Account and all data deleted' }),
-    };
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   }
 
   return {

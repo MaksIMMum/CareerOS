@@ -1,20 +1,47 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { submitFeedback } from '../lib/api.js';
+import { apiErrorMessage } from '../lib/apiErrors.js';
 
 interface FeedbackCardProps {
   context?: string;
   onSubmitted?: () => void;
   className?: string;
+  /**
+   * Show this card only until the user sends or dismisses it once (e.g. "analysis" = after the
+   * first analysis). Remembered per browser; if storage is unavailable the card simply shows.
+   */
+  onceKey?: string;
 }
+
+const onceStorageKey = (k: string) => `careeros.feedback.${k}`;
+const readOnce = (k?: string) => {
+  if (!k) return false;
+  try {
+    return window.localStorage.getItem(onceStorageKey(k)) === '1';
+  } catch {
+    return false;
+  }
+};
+const markOnce = (k?: string) => {
+  if (!k) return;
+  try {
+    window.localStorage.setItem(onceStorageKey(k), '1');
+  } catch {
+    // ignore: the card will just show again next time
+  }
+};
 
 export const FeedbackCard: React.FC<FeedbackCardProps> = ({
   context = 'general',
   onSubmitted,
   className = '',
+  onceKey,
 }) => {
   const { t } = useTranslation();
-  const [rating, setRating] = useState<number>(5);
+  const [hidden, setHidden] = useState(() => readOnce(onceKey));
+  // No pre-selected rating: a default of 5 would inflate the average in the report.
+  const [rating, setRating] = useState<number>(0);
   const [useful, setUseful] = useState('');
   const [confusing, setConfusing] = useState('');
   const [callRequested, setCallRequested] = useState(false);
@@ -25,6 +52,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (rating < 1) return;
     setSubmitting(true);
     setError(null);
 
@@ -38,13 +66,16 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
         context,
       });
       setSubmitted(true);
+      markOnce(onceKey);
       onSubmitted?.();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to submit feedback');
+    } catch (err) {
+      setError(apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (hidden) return null;
 
   if (submitted) {
     return (
@@ -61,6 +92,18 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
       <div className="flex items-center gap-2 mb-4">
         <span className="text-xl">💬</span>
         <h3 className="font-bold text-slate-900 text-sm sm:text-base">{t('feedback.cardTitle')}</h3>
+        {onceKey && (
+          <button
+            type="button"
+            onClick={() => {
+              markOnce(onceKey);
+              setHidden(true);
+            }}
+            className="ml-auto min-h-[40px] px-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
+          >
+            {t('feedback.dismiss')}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -80,6 +123,8 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
                 key={star}
                 type="button"
                 onClick={() => setRating(star)}
+                aria-label={t('feedback.starAria', { n: star })}
+                aria-pressed={rating === star}
                 className={`w-9 h-9 rounded-xl text-sm font-bold flex items-center justify-center transition-all ${
                   rating >= star
                     ? 'bg-amber-400 text-slate-900 shadow-sm scale-105'
@@ -89,7 +134,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
                 ★
               </button>
             ))}
-            <span className="ml-2 text-xs font-semibold text-slate-600">{rating} / 5</span>
+            {rating > 0 && <span className="ml-2 text-xs font-semibold text-slate-600">{rating} / 5</span>}
           </div>
         </div>
 
@@ -151,7 +196,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || rating < 1}
           className="w-full rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
         >
           {submitting ? t('feedback.submitting') : t('feedback.submitBtn')}

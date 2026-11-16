@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { recordDonationClick, reportDonation } from '../lib/api.js';
+import { DEFAULT_DONATION_URL } from '../lib/donation.js';
 
 interface DonationPromptProps {
   className?: string;
@@ -8,7 +9,7 @@ interface DonationPromptProps {
 
 export const DonationPrompt: React.FC<DonationPromptProps> = ({ className = '' }) => {
   const { t } = useTranslation();
-  const jarUrl = import.meta.env.VITE_DONATION_URL || 'https://send.monobank.ua/jar/36886eFj1z';
+  const jarUrl = import.meta.env.VITE_DONATION_URL || DEFAULT_DONATION_URL;
 
   const [clicked, setClicked] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
@@ -17,14 +18,11 @@ export const DonationPrompt: React.FC<DonationPromptProps> = ({ className = '' }
   const [reported, setReported] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleOpenJar = async () => {
-    try {
-      await recordDonationClick(jarUrl);
-    } catch {
-      // Non-blocking telemetry
-    }
-    setClicked(true);
+  const handleOpenJar = () => {
+    // Open first, inside the tap itself: mobile browsers block pop-ups opened after an await.
     window.open(jarUrl, '_blank', 'noopener,noreferrer');
+    setClicked(true);
+    void recordDonationClick(jarUrl).catch(() => undefined); // non-blocking telemetry
   };
 
   const handleReport = async (e: React.FormEvent) => {

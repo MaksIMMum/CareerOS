@@ -400,7 +400,7 @@ const Results: React.FC<{ iv: Interview; onAgain: () => void; locale: string }> 
       </section>
 
       <DonationPrompt className="mt-2" />
-      <FeedbackCard context="interview" className="mt-2" />
+      <FeedbackCard context="interview" onceKey="interview" className="mt-2" />
     </div>
   );
 };
