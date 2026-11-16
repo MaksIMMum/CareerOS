@@ -67,6 +67,16 @@ const ROUTES: RouteDef[] = [
       { path: '/analyses/{id}/share', methods: [POST] },
     ],
   },
+  // Mock interview: answers are posted one at a time, in order.
+  {
+    id: 'Interviews',
+    file: 'interviews.ts',
+    routes: [
+      { path: '/interviews', methods: [GET, POST] },
+      { path: '/interviews/{id}', methods: [GET] },
+      { path: '/interviews/{id}/answers', methods: [POST] },
+    ],
+  },
   // Application tracker: PATCH changes any subset of fields (e.g. only the status on drag-and-drop).
   {
     id: 'Applications',

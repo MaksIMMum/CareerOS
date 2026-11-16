@@ -372,7 +372,6 @@ export const LandingPage: React.FC = () => {
           <div className="rounded-3xl bg-sun p-7 sm:p-9 overflow-hidden">
             <div className="flex items-start justify-between gap-3 mb-2.5">
               <h3 className="font-display font-extrabold text-[24px] sm:text-[28px] leading-[1.2] tracking-[-0.02em]">{t('landing.features.trackerTitle')}</h3>
-              <span className="shrink-0 px-2.5 py-1 rounded-full bg-ink/10 font-mono text-xs font-bold uppercase">{t('common.soon')}</span>
             </div>
             <p className="mb-7 text-[17px] leading-[1.55] text-sun-ink">{t('landing.features.trackerText')}</p>
             <div aria-hidden="true" className="grid grid-cols-3 gap-2.5">
@@ -393,7 +392,6 @@ export const LandingPage: React.FC = () => {
           <div className="rounded-3xl bg-accent text-white p-7 sm:p-9 overflow-hidden">
             <div className="flex items-start justify-between gap-3 mb-2.5">
               <h3 className="font-display font-extrabold text-[24px] sm:text-[28px] leading-[1.2] tracking-[-0.02em]">{t('landing.features.interviewTitle')}</h3>
-              <span className="shrink-0 px-2.5 py-1 rounded-full bg-white/15 font-mono text-xs font-bold uppercase">{t('common.soon')}</span>
             </div>
             <p className="mb-7 text-[17px] leading-[1.55] text-accent-on">{t('landing.features.interviewText')}</p>
             <div aria-hidden="true" className="flex flex-col gap-2.5">

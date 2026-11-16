@@ -153,6 +153,12 @@ describe('CareerOsStack', () => {
     }
   });
 
+  it('protects the mock interview routes with the JWT authorizer', () => {
+    for (const key of ['GET /interviews', 'POST /interviews', 'GET /interviews/{id}', 'POST /interviews/{id}/answers']) {
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: key, AuthorizationType: 'JWT' });
+    }
+  });
+
   it('enables DynamoDB TTL on the ttl attribute (quota items expire)', () => {
     t.hasResourceProperties('AWS::DynamoDB::Table', {
       TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },

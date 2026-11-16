@@ -7,16 +7,19 @@ import {
   deleteApplication,
   listApplications,
   listCvs,
+  listInterviews,
   updateApplication,
   type Application,
   type ApplicationInput,
   type AppStatus,
   type CvSummary,
+  type InterviewSummary,
 } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { bestVersion, cvStats, daysSince, needsFollowUp, resolveHadInterview, type BestVersion, type CvStats } from '../lib/tracker.js';
 import { ApplicationDialog, type ApplicationPrefill } from '../components/ApplicationDialog.js';
-import { ErrorAlert, Icon, PageHero } from '../components/ui.js';
+import { ErrorAlert, Icon, PageHero, scoreColor } from '../components/ui.js';
+import type { InterviewPrefill } from './NewInterviewPage.js';
 
 const STATUS_DOT: Record<AppStatus, string> = {
   APPLIED: 'bg-ink-faint',
@@ -36,16 +39,18 @@ export const TrackerPage: React.FC = () => {
   const navigate = useNavigate();
   const [apps, setApps] = useState<Application[] | null>(null);
   const [cvs, setCvs] = useState<CvSummary[] | null>(null);
+  const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<AppStatus | null>(null);
 
   useEffect(() => {
-    Promise.all([listApplications(), listCvs()])
-      .then(([a, c]) => {
+    Promise.all([listApplications(), listCvs(), listInterviews().catch(() => [])])
+      .then(([a, c, iv]) => {
         setApps(a);
         setCvs(c);
+        setInterviews(iv);
       })
       .catch((err) => {
         setApps([]);
@@ -69,6 +74,16 @@ export const TrackerPage: React.FC = () => {
     const [y, m, d] = ymd.split('-').map(Number);
     return new Date(y!, (m ?? 1) - 1, d ?? 1).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   };
+
+  // Latest interview per vacancy (the list is newest first); a finished one wins over an unfinished one.
+  const interviewByVacancy = useMemo(() => {
+    const m = new Map<string, InterviewSummary>();
+    for (const iv of interviews) {
+      const prev = m.get(iv.vacancyId);
+      if (!prev || (prev.status !== 'DONE' && iv.status === 'DONE')) m.set(iv.vacancyId, iv);
+    }
+    return m;
+  }, [interviews]);
 
   const cvNames = useMemo(() => new Map((cvs ?? []).map((c) => [c.id, c.name])), [cvs]);
   const cvLabel = (a: Application) => cvNames.get(a.cvId) ?? t('tracker.cvDeleted', { name: a.cvName });
@@ -208,6 +223,7 @@ export const TrackerPage: React.FC = () => {
                             key={a.id}
                             app={a}
                             cvName={cvLabel(a)}
+                            interview={a.vacancyId ? interviewByVacancy.get(a.vacancyId) : undefined}
                             sent={fmtDay(a.appliedAt)}
                             dragging={dragId === a.id}
                             onDragStart={(e) => {
@@ -253,13 +269,14 @@ export const TrackerPage: React.FC = () => {
 const AppCard: React.FC<{
   app: Application;
   cvName: string;
+  interview?: InterviewSummary;
   sent: string;
   dragging: boolean;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
   onStatus: (s: AppStatus) => void;
   onEdit: () => void;
-}> = ({ app, cvName, sent, dragging, onDragStart, onDragEnd, onStatus, onEdit }) => {
+}> = ({ app, cvName, interview, sent, dragging, onDragStart, onDragEnd, onStatus, onEdit }) => {
   const { t } = useTranslation();
   const days = daysSince(app.statusChangedAt);
   const followUp = needsFollowUp(app);
@@ -300,6 +317,28 @@ const AppCard: React.FC<{
         {t('tracker.sent', { date: sent })} · {days === 0 ? t('tracker.inStatusToday') : t('tracker.inStatus', { count: days })}
       </p>
       {app.notes && <p className="mt-2 text-sm text-ink-soft whitespace-pre-line break-words line-clamp-3">{app.notes}</p>}
+
+      {interview ? (
+        <Link to={`/app/interviews/${interview.id}`} className="mt-3 inline-flex items-center gap-1.5 min-h-[40px] text-[14px] font-semibold text-accent no-underline hover:underline">
+          <Icon.chat className="w-4 h-4" />
+          {interview.status === 'DONE' && interview.overallScore !== undefined ? (
+            <>
+              {t('tracker.interviewScore')}{' '}
+              <span className={`font-mono ${scoreColor(interview.overallScore * 10)}`}>{interview.overallScore.toFixed(1)}/10</span>
+            </>
+          ) : (
+            t('tracker.interviewContinue')
+          )}
+        </Link>
+      ) : app.vacancyId ? (
+        <Link
+          to="/app/interviews/new"
+          state={{ prefill: { cvId: app.cvId, vacancyId: app.vacancyId } satisfies InterviewPrefill }}
+          className="mt-3 inline-flex items-center gap-1.5 min-h-[40px] text-[14px] font-semibold text-accent no-underline hover:underline"
+        >
+          <Icon.chat className="w-4 h-4" /> {t('tracker.interviewPractise')}
+        </Link>
+      ) : null}
 
       <label className="lg:hidden mt-3 block">
         <span className="sr-only">{t('tracker.statusLabel')}</span>

@@ -41,6 +41,7 @@ export const AppHeader: React.FC = () => {
       active: pathname.startsWith('/app/analyses') && pathname !== '/app/analyses/new',
     },
     { to: '/app/tracker', label: t('nav.tracker'), active: pathname.startsWith('/app/tracker') },
+    { to: '/app/interviews', label: t('nav.interviews'), active: pathname.startsWith('/app/interviews') },
   ];
 
   const handleSignOut = async () => {

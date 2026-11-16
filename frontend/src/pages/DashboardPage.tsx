@@ -123,14 +123,13 @@ export const DashboardPage: React.FC = () => {
             {t('dashboard.trackerCta')} <Icon.arrowRight className="w-4 h-4" />
           </Link>
         </section>
-        {/* Coming next */}
-        <section className="p-6 rounded-3xl border-2 border-dashed border-line-dashed bg-subtle">
-          <div className="mb-4 flex items-start justify-between gap-3 text-ink-faint">
-            <Icon.chat className="w-8 h-8" />
-            <span className="chip-neutral font-mono text-xs uppercase tracking-wider">{t('common.soon')}</span>
-          </div>
-          <h2 className="mb-1.5 font-display font-bold text-lg text-ink-soft">{t('dashboard.interviewTitle')}</h2>
-          <p className="text-[15px] text-ink-muted">{t('dashboard.interviewText')}</p>
+        <section className="card flex flex-col">
+          <div className="mb-4 text-accent"><Icon.chat className="w-8 h-8" /></div>
+          <h2 className="mb-1.5 font-display font-bold text-lg">{t('dashboard.interviewTitle')}</h2>
+          <p className="mb-5 text-[15px] text-ink-muted">{t('dashboard.interviewText')}</p>
+          <Link to="/app/interviews/new" className="btn-accent mt-auto self-start">
+            {t('dashboard.interviewCta')} <Icon.arrowRight className="w-4 h-4" />
+          </Link>
         </section>
       </div>
     </main>
