@@ -145,6 +145,14 @@ describe('CareerOsStack', () => {
     });
   });
 
+  it('protects the application tracker routes with the JWT authorizer', () => {
+    for (const key of [
+      'GET /applications', 'POST /applications', 'GET /applications/{id}', 'PATCH /applications/{id}', 'DELETE /applications/{id}',
+    ]) {
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: key, AuthorizationType: 'JWT' });
+    }
+  });
+
   it('enables DynamoDB TTL on the ttl attribute (quota items expire)', () => {
     t.hasResourceProperties('AWS::DynamoDB::Table', {
       TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },

@@ -114,23 +114,24 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Coming next */}
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {(
-          [
-            [<Icon.columns className="w-8 h-8" />, t('dashboard.trackerTitle'), t('dashboard.trackerText')],
-            [<Icon.chat className="w-8 h-8" />, t('dashboard.interviewTitle'), t('dashboard.interviewText')],
-          ] as const
-        ).map(([icon, title, text]) => (
-          <section key={title} className="p-6 rounded-3xl border-2 border-dashed border-line-dashed bg-subtle">
-            <div className="mb-4 flex items-start justify-between gap-3 text-ink-faint">
-              {icon}
-              <span className="chip-neutral font-mono text-xs uppercase tracking-wider">{t('common.soon')}</span>
-            </div>
-            <h2 className="mb-1.5 font-display font-bold text-lg text-ink-soft">{title}</h2>
-            <p className="text-[15px] text-ink-muted">{text}</p>
-          </section>
-        ))}
+        <section className="card flex flex-col">
+          <div className="mb-4 text-accent"><Icon.columns className="w-8 h-8" /></div>
+          <h2 className="mb-1.5 font-display font-bold text-lg">{t('dashboard.trackerTitle')}</h2>
+          <p className="mb-5 text-[15px] text-ink-muted">{t('dashboard.trackerText')}</p>
+          <Link to="/app/tracker" className="btn-accent mt-auto self-start">
+            {t('dashboard.trackerCta')} <Icon.arrowRight className="w-4 h-4" />
+          </Link>
+        </section>
+        {/* Coming next */}
+        <section className="p-6 rounded-3xl border-2 border-dashed border-line-dashed bg-subtle">
+          <div className="mb-4 flex items-start justify-between gap-3 text-ink-faint">
+            <Icon.chat className="w-8 h-8" />
+            <span className="chip-neutral font-mono text-xs uppercase tracking-wider">{t('common.soon')}</span>
+          </div>
+          <h2 className="mb-1.5 font-display font-bold text-lg text-ink-soft">{t('dashboard.interviewTitle')}</h2>
+          <p className="text-[15px] text-ink-muted">{t('dashboard.interviewText')}</p>
+        </section>
       </div>
     </main>
     </div>
