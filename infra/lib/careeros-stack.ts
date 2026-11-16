@@ -28,6 +28,8 @@ const HANDLERS_DIR = path.join(REPO_ROOT, 'backend', 'src', 'handlers');
 export const GEMINI_KEY_PARAM = '/careeros/gemini-api-key';
 /** Gemini model used by all AI features (see backend/src/lib/llm.ts for why this one). */
 export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+/** Used only for the last retry when GEMINI_MODEL keeps answering 503 "high demand" (~2–8 s). */
+export const GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 export const LOCAL_DEV_ORIGIN = 'http://localhost:5173';
 
 /**
@@ -310,6 +312,7 @@ export class CareerOsStack extends cdk.Stack {
           ...(route.id === 'Admin' ? { TEAM_EMAILS: teamEmails } : {}),
           GEMINI_KEY_PARAM,
           GEMINI_MODEL,
+          GEMINI_FALLBACK_MODEL,
           NODE_OPTIONS: '--enable-source-maps',
         },
         bundling: {

@@ -27,7 +27,7 @@ function provider(...responses: (Response | Error)[]) {
     return next;
   });
   const sleep = vi.fn(async () => {});
-  const p = new GeminiProvider({ getApiKey: async () => 'test-key', fetchFn: fetchFn as any, sleep });
+  const p = new GeminiProvider({ getApiKey: async () => 'test-key', fetchFn: fetchFn as any, sleep, fallbackModel: '' });
   return { p, fetchFn, sleep };
 }
 
@@ -77,6 +77,7 @@ describe('GeminiProvider', () => {
   });
 
   it('retries once on 429 and then succeeds', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { p, fetchFn, sleep } = provider(
       response(429),
       response(200, geminiBody('{"score":10,"missing":[]}')),
@@ -87,15 +88,39 @@ describe('GeminiProvider', () => {
   });
 
   it('retries once on a network error', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { p, fetchFn } = provider(new TypeError('fetch failed'), response(200, geminiBody('{"score":1,"missing":[]}')));
     await p.generateJson('x', schema);
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it('gives up after the single retry on repeated 5xx', async () => {
-    const { p, fetchFn } = provider(response(503), response(500));
+  it('retries an overloaded model up to 3 times with growing waits, then gives up', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { p, fetchFn, sleep } = provider(response(503), response(503), response(503), response(500));
     await expect(p.generateJson('x', schema)).rejects.toMatchObject({ code: 'http', status: 500 });
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(fetchFn).toHaveBeenCalledTimes(4);
+    expect(sleep.mock.calls.map((c: unknown[]) => c[0])).toEqual([1_500, 3_000, 5_000]);
+  });
+
+  it('sends only the last attempt to the fallback model', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const answers = [response(503), response(503), response(503), response(200, geminiBody('{"score":5,"missing":[]}'))];
+    const fetchFn = vi.fn(async () => answers.shift()!);
+    const p = new GeminiProvider({
+      getApiKey: async () => 'k', fetchFn: fetchFn as any, sleep: async () => {},
+      model: 'main-model', fallbackModel: 'backup-model',
+    });
+    expect(await p.generateJson('x', schema)).toEqual({ score: 5, missing: [] });
+    const urls = fetchFn.mock.calls.map((c: unknown[]) => String(c[0]));
+    expect(urls.slice(0, 3).every((u) => u.includes('/models/main-model:'))).toBe(true);
+    expect(urls[3]).toContain('/models/backup-model:');
+  });
+
+  it('recovers when the main model answers on a later retry (no fallback needed)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { p, fetchFn } = provider(response(503), response(503), response(200, geminiBody('{"score":7,"missing":[]}')));
+    expect(await p.generateJson('x', schema)).toEqual({ score: 7, missing: [] });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
   it('does not retry client errors such as 400 or 403', async () => {
