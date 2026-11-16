@@ -16,3 +16,13 @@ export const vacancyConfig = {
   maxItems: LIMITS.MAX_VACANCIES_PER_USER,
 };
 export const vacancyRepo = createResourceRepo<VacancyInput>(vacancyConfig);
+
+// Items: PK=USER#<sub>, SK=APP#<id> — one job application in the tracker (see handlers/applications.ts).
+export const applicationConfig = {
+  prefix: 'APP',
+  listAttributes: [
+    'id', 'vacancyId', 'cvId', 'cvName', 'company', 'title', 'appliedAt', 'status',
+    'statusChangedAt', 'hadInterview', 'notes', 'createdAt', 'updatedAt',
+  ],
+  maxItems: LIMITS.MAX_APPLICATIONS_PER_USER,
+};

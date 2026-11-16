@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createCv, getAnalysis, shareAnalysis, type Analysis } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { activeFlags, highlight } from '../lib/flagged.js';
 import { LIMITS } from '../lib/limits.js';
 import { ErrorAlert, Icon, OkAlert, Rings, ScoreRing } from '../components/ui.js';
+import type { ApplicationPrefill } from '../components/ApplicationDialog.js';
 
 const Chips: React.FC<{ items: string[]; cls: string; empty: string }> = ({ items, cls, empty }) =>
   items.length === 0 ? (
@@ -22,6 +23,7 @@ export const AnalysisResultPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { id = '' } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const fromState = (location.state as { analysis?: Analysis } | null)?.analysis;
 
   const [analysis, setAnalysis] = useState<Analysis | null>(fromState?.id === id ? fromState : null);
@@ -32,6 +34,8 @@ export const AnalysisResultPage: React.FC = () => {
   const [busy, setBusy] = useState<null | 'saving' | 'sharing'>(null);
   const [bullet, setBullet] = useState(0);
   const [share, setShare] = useState<{ shareId: string; scores: { before: number; after: number } } | null>(null);
+  /** The improved CV saved as a new version here — that is the one the user will send. */
+  const [savedCvId, setSavedCvId] = useState<string | null>(null);
 
   useEffect(() => {
     if (analysis) return;
@@ -82,6 +86,7 @@ export const AnalysisResultPage: React.FC = () => {
     try {
       const name = `${analysis.cvName} → ${analysis.vacancyTitle}`.slice(0, LIMITS.CV_NAME_MAX);
       const cv = await createCv({ name, text: improved.trim().slice(0, LIMITS.CV_TEXT_MAX) });
+      setSavedCvId(cv.id);
       setNotice(t('analysis.savedAsCv', { name: cv.name }));
     } catch (err) {
       setError(apiErrorMessage(err, t));
@@ -100,6 +105,16 @@ export const AnalysisResultPage: React.FC = () => {
     } finally {
       setBusy(null);
     }
+  };
+
+  const addToTracker = () => {
+    const prefill: ApplicationPrefill = {
+      cvId: savedCvId ?? analysis.cvId,
+      vacancyId: analysis.vacancyId,
+      company: analysis.company,
+      title: analysis.vacancyTitle,
+    };
+    navigate('/app/tracker', { state: { prefill } });
   };
 
   const date = new Date(analysis.createdAt).toLocaleDateString(i18n.language === 'en' ? 'en-GB' : 'uk-UA', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -149,8 +164,8 @@ export const AnalysisResultPage: React.FC = () => {
                     <Icon.share className="w-4 h-4" /> {busy === 'sharing' ? t('analysis.sharing') : t('analysis.share')}
                   </button>
                 )}
-                <button type="button" disabled title={t('common.soon')} className={`${onBlueBtn} min-h-[52px]`}>
-                  {t('analysis.addToTracker')} <span className="font-mono text-[11px] uppercase text-accent-on">{t('common.soon')}</span>
+                <button type="button" onClick={addToTracker} disabled={busy !== null} className={`${onBlueBtn} min-h-[52px]`}>
+                  <Icon.columns className="w-4 h-4" /> {t('analysis.addToTracker')}
                 </button>
                 <button type="button" disabled title={t('common.soon')} className={`${onBlueBtn} min-h-[52px]`}>
                   {t('analysis.practise')} <span className="font-mono text-[11px] uppercase text-accent-on">{t('common.soon')}</span>

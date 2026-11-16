@@ -29,6 +29,8 @@ export const Icon = {
   copy: (p: IconProps) => svg(<><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 012-2h8" /></>, p),
   share: (p: IconProps) => svg(<><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4" /></>, p),
   plus: (p: IconProps) => svg(<path d="M12 5v14M5 12h14" />, p, 2.2),
+  edit: (p: IconProps) => svg(<><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></>, p),
+  close: (p: IconProps) => svg(<path d="M6 6l12 12M18 6L6 18" />, p, 2.2),
   menu: (p: IconProps) => svg(<path d="M4 7h16M4 12h16M4 17h16" />, p, 2),
   shield: (p: IconProps) => svg(<><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5L15.5 10" /></>, p),
 };

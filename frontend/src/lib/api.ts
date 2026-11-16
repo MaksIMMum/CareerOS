@@ -214,3 +214,52 @@ export async function getPublicShare(shareId: string): Promise<PublicShare> {
   if (!res.ok) throw new ApiError('not_found', res.status, res.status === 404 ? 'not_found' : undefined);
   return (await res.json()) as PublicShare;
 }
+
+// ------------------------------------------------------------------ Applications (tracker)
+
+export const APP_STATUSES = ['APPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] as const;
+export type AppStatus = (typeof APP_STATUSES)[number];
+
+export interface Application {
+  id: string;
+  vacancyId: string | null;
+  cvId: string;
+  /** Name of the CV version when it was linked (still shown after the CV is deleted). */
+  cvName: string;
+  company: string;
+  title: string;
+  /** YYYY-MM-DD */
+  appliedAt: string;
+  status: AppStatus;
+  statusChangedAt: string;
+  hadInterview: boolean;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApplicationInput {
+  vacancyId?: string | null;
+  cvId: string;
+  company: string;
+  title: string;
+  appliedAt: string;
+  status: AppStatus;
+  hadInterview: boolean;
+  notes: string;
+}
+
+export const listApplications = () =>
+  apiRequest<{ items: Application[] }>('/applications').then((r) => r.items);
+export const createApplication = (data: ApplicationInput) =>
+  apiRequest<{ item: Application }>('/applications', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then((r) => r.item);
+export const updateApplication = (id: string, data: Partial<ApplicationInput>) =>
+  apiRequest<{ item: Application }>(`/applications/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => r.item);
+export const deleteApplication = (id: string) =>
+  apiRequest<void>(`/applications/${id}`, { method: 'DELETE' });

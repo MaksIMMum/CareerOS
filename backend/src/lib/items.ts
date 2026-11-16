@@ -93,7 +93,7 @@ export function createResourceRepo<T extends Record<string, unknown>>(
       return item;
     },
 
-    async update(sub: string, id: string, data: T): Promise<StoredItem<T>> {
+    async update(sub: string, id: string, data: Partial<T>): Promise<StoredItem<T>> {
       const fields = Object.entries(data);
       const names: Record<string, string> = { '#updatedAt': 'updatedAt' };
       const values: Record<string, unknown> = { ':updatedAt': new Date().toISOString() };

@@ -67,10 +67,16 @@ The API builds every key from the caller's JWT, so a user can only ever touch th
 | Analysis (detail) | `USER#<sub>` | `ANALYSISDETAIL#<uuidv7>` | `data` = brotli-compressed JSON: full AI result, post-check flags, CV + vacancy snapshot |
 | Public share card | `SHARE#<shareId>` | `SHARE` | `jobTitle`, `scoreBefore`, `scoreAfter`, `createdAt` (+ `ownerSub`, `analysisId`, never returned) |
 | Mock interview | `USER#<sub>` | `INTERVIEW#<id>` | defined in Step 7 |
-| Application | `USER#<sub>` | `APP#<id>` | defined in Step 6 |
+| Application | `USER#<sub>` | `APP#<id>` | `id`, `vacancyId?`, `cvId` (the CV version sent), `cvName` (snapshot), `company`, `title`, `appliedAt` (`YYYY-MM-DD`), `status` (`APPLIED` \| `INTERVIEW` \| `OFFER` \| `REJECTED`), `statusChangedAt`, `hadInterview`, `notes` (≤ 1,000 chars), `createdAt`, `updatedAt` |
 | Event | `EVENT#<yyyy-mm-dd>` | `<iso time>#<sub>#<type>` | `type` (e.g. `SIGNUP`), `payload`; `GSI1PK=USER#<sub>`, `GSI1SK=<iso time>` |
 
-The quota day follows Kyiv time. Limits per user: 20 CVs, 50 vacancies.
+The quota day follows Kyiv time. Limits per user: 20 CVs, 50 vacancies, 200 applications.
+
+**Tracker replies.** An application counts as a *reply* when it reached `INTERVIEW` or `OFFER`, or was
+`REJECTED` after an interview (`hadInterview`, set automatically when a card passes through
+INTERVIEW/OFFER, or ticked by the user). A rejection without an interview is not a reply. The "Which CV works"
+summary groups applications by `cvId` and compares reply rates; cards that stay in `APPLIED` for more than
+7 days get a "follow up?" badge. Adding a card logs `APPLICATION_ADDED`; a status change logs `STATUS_CHANGED`.
 
 ### API
 
@@ -87,6 +93,8 @@ All routes except `/health` require `Authorization: Bearer <Cognito ID token>`; 
 | `POST /analyses` | `{ cvId, vacancyId \| vacancy, lang }` → AI analysis (uses 1 of 10 daily analyses) |
 | `GET /analyses`, `GET /analyses/{id}` | History (50 newest, summaries) / full result |
 | `POST /analyses/{id}/share` | Re-scores CV before → after once and creates a public card (1 of 10 daily shares) |
+| `GET /applications`, `POST /applications` | Tracker cards / add one `{ cvId, title, company?, vacancyId?, appliedAt?, status?, hadInterview?, notes? }` |
+| `GET /applications/{id}`, `PATCH /applications/{id}`, `DELETE /applications/{id}` | Read / change any subset of fields (e.g. only `status`) / delete |
 | `GET /public/shares/{shareId}` | **Public**: job title + score before → after only (no CV text) |
 
 Errors are JSON `{ "error": "<code>" }`: `validation_error` (400, with `details`), `unauthorized` (401),
