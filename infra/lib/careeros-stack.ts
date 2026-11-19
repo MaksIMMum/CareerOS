@@ -60,6 +60,18 @@ const ROUTES: RouteDef[] = [
   { id: 'Me', file: 'me.ts', routes: [{ path: '/me', methods: [GET, POST, DELETE] }] },
   crud('Cvs', 'cvs.ts', '/cvs'),
   crud('Vacancies', 'vacancies.ts', '/vacancies'),
+  // Fill the "new analysis" form from a Djinni / DOU / Work.ua link (fetches only those sites).
+  {
+    id: 'VacancyImport',
+    file: 'vacancyImport.ts',
+    routes: [{ path: '/vacancies/import', methods: [POST] }],
+  },
+  // Djinni / LinkedIn profile text written from one CV version.
+  {
+    id: 'Profiles',
+    file: 'profiles.ts',
+    routes: [{ path: '/cvs/{id}/profile', methods: [GET, POST] }],
+  },
   {
     id: 'Analyses',
     file: 'analyses.ts',

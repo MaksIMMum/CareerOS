@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   createAnalysis,
+  importVacancy,
   listCvs,
   listVacancies,
   type CvSummary,
@@ -57,6 +58,9 @@ export const NewAnalysisPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
   const [text, setText] = useState('');
+  const [url, setUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [imported, setImported] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +92,29 @@ export const NewAnalysisPage: React.FC = () => {
   const canRun =
     !running && cvId !== '' && (usingSaved || (title.trim() !== '' && chars > 0 && over <= 0));
 
+  /** Keep the link only if it is the one the fields were filled from. */
+  const importedUrl = imported && url.trim() === imported ? imported : '';
+
+  const doImport = async () => {
+    const link = url.trim();
+    if (!link || importing) return;
+    setError(null);
+    setImported(null);
+    setImporting(true);
+    try {
+      const v = await importVacancy(link);
+      setTitle(v.title);
+      setCompany(v.company);
+      setText(v.text);
+      setUrl(v.url);
+      setImported(v.url);
+    } catch (err) {
+      setError(apiErrorMessage(err, t));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const run = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canRun) return;
@@ -98,7 +125,7 @@ export const NewAnalysisPage: React.FC = () => {
       const analysis = await createAnalysis(
         usingSaved
           ? { cvId, vacancyId, lang }
-          : { cvId, lang, vacancy: { title: title.trim(), company: company.trim(), text: text.trim() } },
+          : { cvId, lang, vacancy: { title: title.trim(), company: company.trim(), url: importedUrl, text: text.trim() } },
       );
       navigate(`/app/analyses/${analysis.id}`, { state: { analysis } });
     } catch (err) {
@@ -215,6 +242,34 @@ export const NewAnalysisPage: React.FC = () => {
 
                 {!usingSaved && (
                   <>
+                    <div className="mb-5 p-4 rounded-2xl bg-subtle border border-line">
+                      <label htmlFor="vurl" className="lbl">
+                        {t('vacancyImport.label')} <span className="lbl-optional">{t('common.optional')}</span>
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2.5">
+                        <input
+                          id="vurl"
+                          type="url"
+                          inputMode="url"
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault(); // don't submit the analysis form
+                              void doImport();
+                            }
+                          }}
+                          placeholder={t('vacancyImport.placeholder')}
+                          className="field flex-1 min-w-0"
+                        />
+                        <button type="button" onClick={() => void doImport()} disabled={importing || url.trim() === ''} className="btn-outline shrink-0">
+                          <Icon.link className="w-4 h-4" /> {importing ? t('vacancyImport.importing') : t('vacancyImport.button')}
+                        </button>
+                      </div>
+                      <p className="hint" aria-live="polite">
+                        {imported ? t('vacancyImport.done', { site: new URL(imported).hostname.replace(/^www\./, '') }) : t('vacancyImport.hint')}
+                      </p>
+                    </div>
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 mb-4">
                       <div>
                         <label htmlFor="title" className="lbl">{t('analysis.titleLabel')}</label>

@@ -7,7 +7,8 @@ export function apiErrorMessage(err: unknown, t: TFunction): string {
     switch (err.code) {
       case 'quota_exceeded': {
         const k = err.body?.kind;
-        const kind = k === 'interview' || k === 'share' || k === 'coverLetter' ? k : 'analysis';
+        const kinds = ['interview', 'share', 'coverLetter', 'profile', 'vacancyImport'];
+        const kind = typeof k === 'string' && kinds.includes(k) ? k : 'analysis';
         return t(`errors.quotaExceeded.${kind}`, { limit: err.body?.limit ?? '' });
       }
       case 'validation_error':
@@ -22,6 +23,16 @@ export function apiErrorMessage(err: unknown, t: TFunction): string {
         return t('errors.aiTimeout');
       case 'ai_unavailable':
         return t('errors.aiUnavailable');
+      case 'import_unsupported_site':
+        return t('errors.import.unsupported');
+      case 'import_blocked':
+        return t('errors.import.blocked');
+      case 'import_not_found':
+        return t('errors.import.notFound');
+      case 'import_no_vacancy':
+        return t('errors.import.noVacancy');
+      case 'import_failed':
+        return t('errors.import.failed');
     }
     if (err.status === 401) return t('errors.sessionExpired');
   }

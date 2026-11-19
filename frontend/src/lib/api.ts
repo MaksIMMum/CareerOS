@@ -149,6 +149,45 @@ export const updateVacancy = (id: string, data: VacancyInput) =>
 export const deleteVacancy = (id: string) =>
   apiRequest<void>(`/vacancies/${id}`, { method: 'DELETE' });
 
+export interface ImportedVacancy {
+  title: string;
+  company: string;
+  url: string;
+  text: string;
+  site: 'djinni.co' | 'jobs.dou.ua' | 'work.ua';
+}
+
+/** Reads a vacancy from a Djinni / DOU / Work.ua link. Nothing is saved. */
+export const importVacancy = (url: string) =>
+  apiRequest<{ vacancy: ImportedVacancy }>('/vacancies/import', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  }).then((r) => r.vacancy);
+
+// ------------------------------------------------------------------ Job-site profile text
+
+export type ProfilePlatform = 'djinni' | 'linkedin';
+
+export interface ProfileText {
+  platform: ProfilePlatform;
+  lang: 'uk' | 'en';
+  headline: string;
+  about: string;
+  skills: string[];
+  flagged: Flagged;
+  createdAt: string;
+  /** The CV's updatedAt when the text was written. */
+  cvUpdatedAt: string;
+}
+
+export const getProfiles = (cvId: string) =>
+  apiRequest<{ items: Partial<Record<ProfilePlatform, ProfileText>> }>(`/cvs/${cvId}/profile`).then((r) => r.items);
+export const createProfile = (cvId: string, platform: ProfilePlatform, lang: 'uk' | 'en') =>
+  apiRequest<{ profile: ProfileText }>(`/cvs/${cvId}/profile`, {
+    method: 'POST',
+    body: JSON.stringify({ platform, lang }),
+  }).then((r) => r.profile);
+
 // ------------------------------------------------------------------ Analyses
 
 export interface AnalysisResult {

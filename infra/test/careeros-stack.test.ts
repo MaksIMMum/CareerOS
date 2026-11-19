@@ -150,7 +150,7 @@ describe('CareerOsStack', () => {
   });
 
   it('protects the analysis routes and exposes only the share card publicly', () => {
-    for (const key of ['GET /analyses', 'POST /analyses', 'GET /analyses/{id}', 'POST /analyses/{id}/share', 'POST /analyses/{id}/cover-letter', 'GET /insights/skills']) {
+    for (const key of ['GET /analyses', 'POST /analyses', 'GET /analyses/{id}', 'POST /analyses/{id}/share', 'POST /analyses/{id}/cover-letter', 'GET /insights/skills', 'POST /vacancies/import', 'GET /cvs/{id}/profile', 'POST /cvs/{id}/profile']) {
       t.hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: key, AuthorizationType: 'JWT' });
     }
     t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
