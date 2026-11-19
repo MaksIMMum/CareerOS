@@ -34,7 +34,11 @@ function parseAlertEmail(argv: string[]): string | undefined {
 
 function run(cmd: string, args: string[], cwd: string): void {
   console.log(`\n$ ${cmd} ${args.join(' ')}   (in ${path.relative(REPO_ROOT, cwd) || '.'})`);
-  const res = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
+  const isWin = process.platform === 'win32';
+  // With shell: true the args are joined into one command line, so quote any arg with spaces
+  // (e.g. a repo path like "C:\Users\me\My Project\...") or it gets split into several args.
+  const shellArgs = isWin ? args.map((a) => (/\s/.test(a) ? `"${a}"` : a)) : args;
+  const res = spawnSync(cmd, shellArgs, { cwd, stdio: 'inherit', shell: isWin });
   if (res.status !== 0) {
     console.error(`\nCommand failed with exit code ${res.status ?? 'null'}: ${cmd} ${args.join(' ')}`);
     process.exit(res.status ?? 1);
