@@ -1,0 +1,18 @@
+{
+  "extName": {
+    "message": "CareerOS — CV for this vacancy",
+    "description": "Extension name"
+  },
+  "extShortName": {
+    "message": "CareerOS",
+    "description": "Short name"
+  },
+  "extDescription": {
+    "message": "Match your CV to the vacancy you see on Djinni, DOU or Work.ua: score, missing skills, an honest CV rewrite and a cover letter.",
+    "description": "Store/manifest description, max 132 chars"
+  },
+  "actionTitle": {
+    "message": "CareerOS: tailor your CV to this vacancy",
+    "description": "Toolbar button tooltip"
+  }
+}

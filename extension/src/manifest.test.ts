@@ -15,6 +15,18 @@ describe('buildManifest', () => {
     expect(m.side_panel.default_path).toBe('sidepanel.html');
   });
 
+  it('keeps the development key, and drops it in the store package', () => {
+    expect(buildManifest(undefined).key).toMatch(/^MIIB/);
+    expect(buildManifest('https://a.example.com', { store: true })).not.toHaveProperty('key');
+  });
+
+  it('is localised (uk default) and versioned', () => {
+    const m = buildManifest(undefined);
+    expect(m.name).toBe('__MSG_extName__');
+    expect(m.default_locale).toBe('uk');
+    expect(m.version).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
   it('builds without an API url (CI) and refuses plain http', () => {
     expect(buildManifest(undefined).host_permissions).toHaveLength(4);
     expect(() => buildManifest('http://example.com')).toThrow();

@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "CareerOS — CV for this vacancy",
-  "short_name": "CareerOS",
-  "version": "0.1.0",
-  "description": "Match your CV to the vacancy you are looking at on Djinni, DOU or Work.ua: score, missing skills, an honest CV rewrite and a cover letter.",
+  "name": "__MSG_extName__",
+  "short_name": "__MSG_extShortName__",
+  "version": "1.0.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "uk",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApqKflR+oiYmLc+I3iQhOy6zR40rjLG0+6Mk0n12CeMlXqcFWFpdecxhJyCyZ8UFM5f1HP71wOG6HHkTCZpmY+Yk0kpFeZJWPSdCUSVEN6y/V3+aiJvT+X1QYZVM5tAAKZRtme5JUepY3r781LJynHtitRNv2oLKV9fIXaf0NlkDwmkRUSZcP6gOrtbYB4tauH+aFaOdEZqpoqjonXDSuuW1CryNE5NISAxyU5KZTxNkz9sbmWFxHTDPLmQbpSoXq1bZLirfYQazjSNecDZClrtkinfXogbRx3TJD6pjgSHkSx/Cq8SWropdRT1D78YB+XteGMfqpsPS2je2+/kcD+wIDAQAB",
   "minimum_chrome_version": "116",
   "icons": {
@@ -13,7 +14,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "CareerOS: tailor your CV to this vacancy",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
@@ -26,7 +27,11 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["sidePanel", "scripting", "storage"],
+  "permissions": [
+    "sidePanel",
+    "scripting",
+    "storage"
+  ],
   "host_permissions": [
     "https://djinni.co/*",
     "https://jobs.dou.ua/*",

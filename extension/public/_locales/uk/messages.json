@@ -1,0 +1,18 @@
+{
+  "extName": {
+    "message": "CareerOS — CV під вакансію",
+    "description": "Extension name"
+  },
+  "extShortName": {
+    "message": "CareerOS",
+    "description": "Short name"
+  },
+  "extDescription": {
+    "message": "Порівняй своє CV з вакансією на Djinni, DOU чи Work.ua: оцінка, яких навичок бракує, чесне покращене CV і супровідний лист.",
+    "description": "Store/manifest description, max 132 chars"
+  },
+  "actionTitle": {
+    "message": "CareerOS: підлаштуй CV під цю вакансію",
+    "description": "Toolbar button tooltip"
+  }
+}

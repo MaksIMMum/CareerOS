@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { signIn } from 'aws-amplify/auth';
 import { authErrorKey } from '../../../frontend/src/lib/authErrors.js';
-import { ErrorAlert, PasswordInput } from '../../../frontend/src/components/ui.js';
+import { ErrorAlert, OkAlert, PasswordInput } from '../../../frontend/src/components/ui.js';
 import { openUrl } from '../chromeApi.js';
 import { siteLink } from './siteUrl.js';
 
 /** Email + password sign-in with the website's Cognito accounts. Sign-up stays on the website. */
-export const SignInView: React.FC<{ onSignedIn: () => void }> = ({ onSignedIn }) => {
+export const SignInView: React.FC<{ onSignedIn: () => void; expired?: boolean }> = ({ onSignedIn, expired }) => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,6 +35,7 @@ export const SignInView: React.FC<{ onSignedIn: () => void }> = ({ onSignedIn })
         <h1 className="font-display font-extrabold text-[22px] leading-tight mb-1">{t('auth.signInTitle')}</h1>
         <p className="text-[15px] text-ink-muted">{t('ext.signInLead')}</p>
       </div>
+      {expired && !error && <OkAlert>{t('errors.sessionExpired')}</OkAlert>}
       {error && <ErrorAlert>{error}</ErrorAlert>}
       <div>
         <label htmlFor="email" className="lbl">{t('auth.emailLabel')}</label>

@@ -18,7 +18,8 @@
     "deploy": "npm run deploy --workspace=infra",
     "smoke": "node scripts/smoke.mjs",
     "set-gemini-key": "bash infra/scripts/set-gemini-key.sh",
-    "build:extension": "npm run build --workspace=extension"
+    "build:extension": "npm run build --workspace=extension",
+    "package:extension": "npm run package --workspace=extension"
   },
   "devDependencies": {
     "typescript": "^5.7.3"
