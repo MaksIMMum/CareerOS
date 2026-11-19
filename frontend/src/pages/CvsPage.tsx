@@ -9,6 +9,7 @@ import {
   type CvSummary,
 } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
+import { downloadCvPdf } from '../lib/download.js';
 import { LIMITS } from '../lib/limits.js';
 import { extractPdfText, PdfExtractError } from '../lib/pdf.js';
 import { ErrorAlert, Icon, OkAlert, PageHero } from '../components/ui.js';
@@ -22,7 +23,7 @@ export const CvsPage: React.FC = () => {
   const [cvs, setCvs] = useState<CvSummary[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [busy, setBusy] = useState<null | 'extracting' | 'saving' | 'opening'>(null);
+  const [busy, setBusy] = useState<null | 'extracting' | 'saving' | 'opening' | 'downloading'>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -59,6 +60,27 @@ export const CvsPage: React.FC = () => {
       setEditor({ id: cv.id, name: cv.name, text: cv.text });
     } catch (err) {
       setError(apiErrorMessage(err, t));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const download = async (cv: CvSummary) => {
+    resetMessages();
+    setBusy('downloading');
+    try {
+      let full;
+      try {
+        full = await getCv(cv.id);
+      } catch (err) {
+        setError(apiErrorMessage(err, t));
+        return;
+      }
+      try {
+        await downloadCvPdf(full);
+      } catch {
+        setError(t('cvs.downloadFailed'));
+      }
     } finally {
       setBusy(null);
     }
@@ -164,6 +186,16 @@ export const CvsPage: React.FC = () => {
                     <div className="flex gap-2 shrink-0">
                       <button type="button" onClick={() => void openCv(cv.id)} disabled={!!busy} className="btn-secondary btn-sm min-h-[40px]">
                         {t('cvs.edit')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void download(cv)}
+                        disabled={!!busy}
+                        className="btn-secondary btn-sm min-h-[40px]"
+                        aria-label={t('cvs.downloadAria', { name: cv.name })}
+                        title={t('cvs.downloadHint')}
+                      >
+                        <Icon.download className="w-4 h-4" /> {busy === 'downloading' ? t('cvs.downloading') : t('cvs.download')}
                       </button>
                       <button type="button" onClick={() => void remove(cv)} disabled={!!busy} className="btn-danger btn-sm min-h-[40px]">
                         {t('cvs.delete')}
