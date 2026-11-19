@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { buildManifest } from './manifest.js';
 
 const here = (p: string) => resolve(__dirname, p);
 
@@ -9,8 +10,16 @@ const here = (p: string) => resolve(__dirname, p);
  * The side panel reuses the website's code from ../frontend/src (API client, auth, i18n, UI,
  * PDF), and reads the same VITE_* settings from frontend/.env.production written by deploy.
  */
-export default defineConfig({
-  plugins: [react()],
+/** Writes dist/manifest.json with the API host from frontend/.env.production. */
+const manifestPlugin = (apiUrl: string | undefined): Plugin => ({
+  name: 'careeros-manifest',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(buildManifest(apiUrl), null, 2)}\n` });
+  },
+});
+
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), manifestPlugin(loadEnv(mode, here('../frontend'), 'VITE_').VITE_API_URL)],
   envDir: here('../frontend'),
   base: './',
   server: { fs: { allow: [here('..')] } },
@@ -30,4 +39,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

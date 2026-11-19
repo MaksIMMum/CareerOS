@@ -121,10 +121,11 @@ npm run build:extension        # → extension/dist
 Then in Chrome open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose
 `extension/dist`. Pin the CareerOS icon and click it on a vacancy page.
 
-- The extension id is fixed by the public `key` in `extension/public/manifest.json`
-  (`pnbpcifonoheffgdhbaocjkffeklejli`); the API allows CORS from `chrome-extension://<that id>` (`EXTENSION_ID` in
-  `infra/lib/careeros-stack.ts`). Change both together.
-- Permissions: `sidePanel`, `scripting`, `storage`, and the three job sites only. The page is read only while the
+- The manifest is generated at build time (`extension/manifest.ts` + `manifest.base.json`): it adds your API's host
+  from `frontend/.env.production` to `host_permissions`, which is how the side panel calls the API (API Gateway CORS
+  does not accept `chrome-extension://` origins). Rebuild the extension after deploying to a new stack.
+- The extension id is fixed by the public `key` in `extension/manifest.base.json` (`pnbpcifonoheffgdhbaocjkffeklejli`).
+- Permissions: `sidePanel`, `scripting`, `storage`, the three job sites and your CareerOS API only. The page is read only while the
   panel is open; nothing is sent until you press "Match my CV".
 - Publishing to the Chrome Web Store (later) needs a one-time $5 developer registration; the AWS side stays free.
 
