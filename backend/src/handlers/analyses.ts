@@ -17,6 +17,7 @@ import {
   checkResult,
   clampScore,
   coverLetterSchema,
+  dropPersonalTraits,
   rescoreSchema,
   type AnalysisResult,
   type VacancyForPrompt,
@@ -187,7 +188,7 @@ export function createAnalysesHandler({
       getLlm().generateJson(buildAnalysisPrompt(cv.text, vacancy, lang), analysisResultSchema),
     );
     const durationMs = Date.now() - started;
-    const result: AnalysisResult = { ...raw, matchScore: clampScore(raw.matchScore) };
+    const result: AnalysisResult = dropPersonalTraits({ ...raw, matchScore: clampScore(raw.matchScore) });
     const flagged = checkResult(cv.text, result);
 
     // Save a pasted vacancy only after a successful analysis (no duplicates from failed retries).
