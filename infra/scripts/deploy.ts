@@ -75,7 +75,7 @@ function renderEnv(): string {
   >;
   const out = all[STACK_NAME];
   if (!out) throw new Error(`No outputs for ${STACK_NAME} in ${OUTPUTS_FILE}`);
-  const required = ['ApiUrl', 'UserPoolId', 'UserPoolClientId', 'Region'] as const;
+  const required = ['ApiUrl', 'UserPoolId', 'UserPoolClientId', 'Region', 'CloudFrontUrl'] as const;
   for (const key of required) {
     if (!out[key]) throw new Error(`Stack output ${key} is missing`);
   }
@@ -85,6 +85,8 @@ function renderEnv(): string {
     `VITE_USER_POOL_ID=${out.UserPoolId}`,
     `VITE_USER_POOL_CLIENT_ID=${out.UserPoolClientId}`,
     `VITE_REGION=${out.Region}`,
+    // The extension links back to the site (sign-up, full results); the site itself ignores it.
+    `VITE_SITE_URL=${out.CloudFrontUrl}`,
     '',
   ].join('\n');
 }

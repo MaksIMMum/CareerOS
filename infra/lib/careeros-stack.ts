@@ -31,6 +31,12 @@ export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 /** Used only for the last retry when GEMINI_MODEL keeps answering 503 "high demand" (~2–8 s). */
 export const GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 export const LOCAL_DEV_ORIGIN = 'http://localhost:5173';
+/**
+ * The CareerOS Chrome extension (extension/). Its id is fixed by the public "key" in
+ * extension/public/manifest.json, so the side panel can call the API from this origin.
+ */
+export const EXTENSION_ID = 'pnbpcifonoheffgdhbaocjkffeklejli';
+export const EXTENSION_ORIGIN = `chrome-extension://${EXTENSION_ID}`;
 
 /**
  * One entry per backend handler (backend/src/handlers/<file>.ts).
@@ -258,7 +264,7 @@ export class CareerOsStack extends cdk.Stack {
       userPoolClients: [userPoolClient],
     });
 
-    // CORS is locked to the CloudFront site. `-c allowLocalDev=true` (ALLOW_LOCAL_DEV=1 npm run deploy)
+    // CORS is locked to the CloudFront site and the Chrome extension. `-c allowLocalDev=true` (ALLOW_LOCAL_DEV=1 npm run deploy)
     // also allows http://localhost:5173, for running the frontend locally against this API.
     const allowLocalDev = String(this.node.tryGetContext('allowLocalDev') ?? '') === 'true';
 
@@ -267,7 +273,9 @@ export class CareerOsStack extends cdk.Stack {
       createDefaultStage: false,
       defaultAuthorizer: jwtAuthorizer,
       corsPreflight: {
-        allowOrigins: allowLocalDev ? [siteUrl, LOCAL_DEV_ORIGIN] : [siteUrl],
+        allowOrigins: allowLocalDev
+          ? [siteUrl, EXTENSION_ORIGIN, LOCAL_DEV_ORIGIN]
+          : [siteUrl, EXTENSION_ORIGIN],
         allowMethods: [
           apigw.CorsHttpMethod.GET,
           apigw.CorsHttpMethod.POST,
