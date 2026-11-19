@@ -7,7 +7,7 @@ export function apiErrorMessage(err: unknown, t: TFunction): string {
     switch (err.code) {
       case 'quota_exceeded': {
         const k = err.body?.kind;
-        const kind = k === 'interview' || k === 'share' ? k : 'analysis';
+        const kind = k === 'interview' || k === 'share' || k === 'coverLetter' ? k : 'analysis';
         return t(`errors.quotaExceeded.${kind}`, { limit: err.body?.limit ?? '' });
       }
       case 'validation_error':

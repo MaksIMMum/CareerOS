@@ -1,5 +1,5 @@
-/** Turns a CV version name into a safe file name, e.g. "Backend CV" → "Backend CV.pdf". */
-export function cvFileName(name: string): string {
+/** Turns a name into a safe file name, e.g. "Backend CV" → "Backend CV.pdf". */
+export function pdfFileName(name: string, fallback = 'CV'): string {
   const base = name
     .replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -7,7 +7,7 @@ export function cvFileName(name: string): string {
     .replace(/^\.+/, '')
     .slice(0, 100)
     .trim();
-  return `${base || 'CV'}.pdf`;
+  return `${base || fallback}.pdf`;
 }
 
 /** Saves bytes as a file in the browser. */
@@ -23,11 +23,11 @@ export function downloadBlob(fileName: string, data: BlobPart, type: string): vo
 }
 
 /**
- * Renders a CV to PDF and downloads it. pdf-lib and the fonts (~1 MB together) are
- * loaded lazily, only the first time someone downloads a CV.
+ * pdf-lib, the PDF layouts and the fonts (~1 MB together) are loaded lazily,
+ * only the first time someone downloads a PDF.
  */
-export async function downloadCvPdf(cv: { name: string; text: string }): Promise<void> {
-  const [{ buildCvPdf }, regularUrl, boldUrl] = await Promise.all([
+async function loadPdfKit() {
+  const [mod, regularUrl, boldUrl] = await Promise.all([
     import('./cvPdf.js'),
     import('../assets/fonts/NotoSans-Regular.ttf?url').then((m) => m.default),
     import('../assets/fonts/NotoSans-Bold.ttf?url').then((m) => m.default),
@@ -38,6 +38,19 @@ export async function downloadCvPdf(cv: { name: string; text: string }): Promise
     return res.arrayBuffer();
   };
   const [regular, bold] = await Promise.all([fetchFont(regularUrl), fetchFont(boldUrl)]);
-  const bytes = await buildCvPdf(cv, { regular, bold });
-  downloadBlob(cvFileName(cv.name), bytes as BlobPart, 'application/pdf');
+  return { ...mod, fonts: { regular, bold } };
+}
+
+/** Renders a saved CV to PDF and downloads it. */
+export async function downloadCvPdf(cv: { name: string; text: string }): Promise<void> {
+  const { buildCvPdf, fonts } = await loadPdfKit();
+  const bytes = await buildCvPdf(cv, fonts);
+  downloadBlob(pdfFileName(cv.name), bytes as BlobPart, 'application/pdf');
+}
+
+/** Renders a cover letter to PDF and downloads it as "<title>.pdf". */
+export async function downloadLetterPdf(letter: { title: string; text: string }): Promise<void> {
+  const { buildLetterPdf, fonts } = await loadPdfKit();
+  const bytes = await buildLetterPdf(letter, fonts);
+  downloadBlob(pdfFileName(letter.title, 'Cover letter'), bytes as BlobPart, 'application/pdf');
 }

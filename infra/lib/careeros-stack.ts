@@ -67,6 +67,8 @@ const ROUTES: RouteDef[] = [
       { path: '/analyses', methods: [GET, POST] },
       { path: '/analyses/{id}', methods: [GET] },
       { path: '/analyses/{id}/share', methods: [POST] },
+      { path: '/analyses/{id}/cover-letter', methods: [POST] },
+      { path: '/insights/skills', methods: [GET] },
     ],
   },
   // Mock interview: answers are posted one at a time, in order.

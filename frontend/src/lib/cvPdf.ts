@@ -390,3 +390,44 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
 
   return doc.save();
 }
+
+/**
+ * A cover letter as a plain one-column A4 page: paragraphs separated by blank lines,
+ * black text, no inferred structure (a letter has no sections).
+ */
+export async function buildLetterPdf(letter: { title: string; text: string }, fonts: CvPdfFonts): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+  const regular = await doc.embedFont(fonts.regular, { subset: true });
+  doc.setTitle(sanitizeCvText(letter.title).replace(/\n/g, ' ').trim() || 'Cover letter');
+  doc.setCreator('CareerOS');
+  doc.setProducer('CareerOS');
+
+  const size = 11;
+  const leading = 16.5;
+  const marginX = 64;
+  const marginY = 64;
+  const width = PAGE.width - 2 * marginX;
+  const measure: Measure = (s) => regular.widthOfTextAtSize(s, size);
+
+  let page: PDFPage = doc.addPage([PAGE.width, PAGE.height]);
+  let y = PAGE.height - marginY;
+  const lines = sanitizeCvText(letter.text).trim().split('\n');
+  lines.forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) {
+      if (lines[i - 1]?.trim()) y -= leading * 0.6; // one paragraph gap, however many blank lines
+      return;
+    }
+    for (const wrapped of wrapRuns([{ text: line }], width, measure)) {
+      if (y - leading < marginY) {
+        page = doc.addPage([PAGE.width, PAGE.height]);
+        y = PAGE.height - marginY;
+      }
+      y -= leading;
+      page.drawText(wrapped.map((r) => r.text).join(''), { x: marginX, y, size, font: regular, color: BLACK });
+    }
+  });
+
+  return doc.save();
+}

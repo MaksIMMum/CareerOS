@@ -42,10 +42,14 @@ const ALIASES: string[][] = [
   ['machine learning', 'ml'],
 ];
 
-const aliasesOf = (term: string): string[] => {
+/** All known spellings of a skill (itself if it has no aliases), lower case. */
+export const aliasesOf = (term: string): string[] => {
   const t = term.toLowerCase();
   return ALIASES.find((group) => group.includes(t)) ?? [t];
 };
+
+/** One key for all spellings of a skill ("JS" / "JavaScript" → "javascript"), for grouping. */
+export const canonicalSkill = (term: string): string => aliasesOf(term.trim())[0]!;
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
