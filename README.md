@@ -60,6 +60,7 @@ flowchart LR
 - **Infrastructure as code:** AWS CDK (TypeScript) in `infra/`.
 
 Data model, API routes, AI client and security notes: [`docs/technical-reference.md`](docs/technical-reference.md).
+Publishing the Chrome extension: [`docs/chrome-web-store.md`](docs/chrome-web-store.md).
 
 ## Repository structure
 
@@ -135,7 +136,10 @@ Then in Chrome open `chrome://extensions`, turn on **Developer mode**, click **L
 - The extension id is fixed by the public `key` in `extension/manifest.base.json` (`pnbpcifonoheffgdhbaocjkffeklejli`).
 - Permissions: `sidePanel`, `scripting`, `storage`, the three job sites and your CareerOS API only. The page is read only while the
   panel is open; nothing is sent until you press "Match my CV".
-- Publishing to the Chrome Web Store (later) needs a one-time $5 developer registration; the AWS side stays free.
+- **Chrome Web Store:** `npm run package:extension` builds the upload ZIP (`extension/release/`); listing texts in
+  UA/EN, permission justifications, privacy answers, screenshots (`extension/store/`) and the step-by-step
+  submission are in [`docs/chrome-web-store.md`](docs/chrome-web-store.md). It needs a one-time developer
+  registration fee (US$5); the AWS side stays free.
 
 ## Deploy from a fresh AWS account
 

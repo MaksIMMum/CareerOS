@@ -30,6 +30,16 @@ export async function getAuthHeader(): Promise<Record<string, string>> {
   return {};
 }
 
+let onUnauthorized: (() => void) | null = null;
+
+/**
+ * Called when the API answers 401 (the sign-in session is gone or expired). The Chrome extension
+ * uses it to go back to its sign-in screen; the website relies on its route guards instead.
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 export async function apiRequest<T = unknown>(
   path: string,
   options: RequestInit = {}
@@ -59,6 +69,7 @@ export async function apiRequest<T = unknown>(
     } catch {
       // Ignore JSON parse error on non-JSON response
     }
+    if (res.status === 401) onUnauthorized?.();
     throw new ApiError(errorMsg, res.status, errJson?.error as string | undefined, errJson);
   }
 

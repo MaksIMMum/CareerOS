@@ -33,3 +33,6 @@ Thumbs.db
 
 # CDK deploy outputs
 infra/cdk-outputs.json
+# Chrome Web Store package builds (npm run package:extension)
+extension/dist-store/
+extension/release/

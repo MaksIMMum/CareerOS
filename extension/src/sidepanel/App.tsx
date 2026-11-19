@@ -2,13 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCurrentUser, signOut } from 'aws-amplify/auth';
 import { isAuthConfigured } from '../../../frontend/src/lib/auth.js';
+import { setUnauthorizedHandler } from '../../../frontend/src/lib/api.js';
 import { ErrorAlert, LangSwitch, LogoMark } from '../../../frontend/src/components/ui.js';
 import { clearSavedAnalyses, openUrl } from '../chromeApi.js';
 import { siteLink } from './siteUrl.js';
 import { SignInView } from './SignInView.js';
 import { VacancyView } from './VacancyView.js';
 
-type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; email: string };
+type AuthState =
+  | { status: 'loading' }
+  | { status: 'signedOut'; expired?: boolean }
+  | { status: 'signedIn'; email: string };
 
 export const App: React.FC = () => {
   const { t } = useTranslation();
@@ -26,6 +30,12 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     void checkUser();
+    // The session expired or was revoked (e.g. the account was deleted on the website): sign in again.
+    setUnauthorizedHandler(() => {
+      void signOut().catch(() => undefined);
+      setAuth({ status: 'signedOut', expired: true });
+    });
+    return () => setUnauthorizedHandler(null);
   }, []);
 
   const doSignOut = async () => {
@@ -78,7 +88,7 @@ export const App: React.FC = () => {
         ) : auth.status === 'loading' ? (
           <p className="p-4 text-sm text-ink-muted">{t('common.loading')}</p>
         ) : auth.status === 'signedOut' ? (
-          <SignInView onSignedIn={() => void checkUser()} />
+          <SignInView expired={auth.expired} onSignedIn={() => void checkUser()} />
         ) : (
           <VacancyView />
         )}

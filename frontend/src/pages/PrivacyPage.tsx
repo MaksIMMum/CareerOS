@@ -69,6 +69,18 @@ export const PrivacyPage: React.FC = () => {
           </div>
         </section>
 
+        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xl">🧩</span>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+              {t('privacyPage.extensionTitle')}
+            </h2>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            {t('privacyPage.extensionText')}
+          </p>
+        </section>
+
         {user && (
           <section className="bg-white p-6 sm:p-7 rounded-2xl border border-red-200 shadow-sm">
             <div className="flex items-center gap-2 mb-3">

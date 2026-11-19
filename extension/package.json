@@ -1,6 +1,6 @@
 {
   "name": "careeros-extension",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "CareerOS Chrome extension: tailor your CV on the vacancy page (Djinni, DOU, Work.ua)",
   "type": "module",
@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "package": "node scripts/package.mjs"
   },
   "dependencies": {
     "aws-amplify": "^6.22.2",

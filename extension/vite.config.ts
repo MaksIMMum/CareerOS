@@ -11,20 +11,23 @@ const here = (p: string) => resolve(__dirname, p);
  * PDF), and reads the same VITE_* settings from frontend/.env.production written by deploy.
  */
 /** Writes dist/manifest.json with the API host from frontend/.env.production. */
-const manifestPlugin = (apiUrl: string | undefined): Plugin => ({
+const manifestPlugin = (apiUrl: string | undefined, store: boolean): Plugin => ({
   name: 'careeros-manifest',
   generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(buildManifest(apiUrl), null, 2)}\n` });
+    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(buildManifest(apiUrl, { store }), null, 2)}\n` });
   },
 });
 
+/** CAREEROS_STORE=1 → the Chrome Web Store package (see scripts/package.mjs). */
+const store = process.env.CAREEROS_STORE === '1';
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), manifestPlugin(loadEnv(mode, here('../frontend'), 'VITE_').VITE_API_URL)],
+  plugins: [react(), manifestPlugin(loadEnv(mode, here('../frontend'), 'VITE_').VITE_API_URL, store)],
   envDir: here('../frontend'),
   base: './',
   server: { fs: { allow: [here('..')] } },
   build: {
-    outDir: 'dist',
+    outDir: store ? 'dist-store' : 'dist',
     emptyOutDir: true,
     // The PDF chunk (pdf-lib + fontkit) is lazy, loaded only on the first PDF download.
     chunkSizeWarningLimit: 1300,
