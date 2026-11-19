@@ -86,9 +86,8 @@ describe('CareerOsStack', () => {
     });
     const apis = t.findResources('AWS::ApiGatewayV2::Api');
     const cors = Object.values(apis)[0]!.Properties.CorsConfiguration;
-    // The CloudFront site and the Chrome extension by default; localhost only when explicitly allowed.
-    expect(cors.AllowOrigins).toHaveLength(2);
-    expect(cors.AllowOrigins).toContain('chrome-extension://pnbpcifonoheffgdhbaocjkffeklejli');
+    // Only the CloudFront site by default; localhost only when explicitly allowed.
+    expect(cors.AllowOrigins).toHaveLength(1);
     expect(JSON.stringify(cors.AllowOrigins)).not.toContain('localhost');
 
     const dev = Object.values(synth({ allowLocalDev: 'true' }).findResources('AWS::ApiGatewayV2::Api'))[0]!;
