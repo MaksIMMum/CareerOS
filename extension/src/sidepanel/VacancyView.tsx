@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createAnalysis, getAnalysis, listCvs, type Analysis, type CvSummary } from '../../../frontend/src/lib/api.js';
+import { createAnalysis, createCv, getAnalysis, listCvs, type Analysis, type CvSummary } from '../../../frontend/src/lib/api.js';
 import { apiErrorMessage } from '../../../frontend/src/lib/apiErrors.js';
-import { ErrorAlert, Icon } from '../../../frontend/src/components/ui.js';
+import { LIMITS } from '../../../frontend/src/lib/limits.js';
+import { extractPdfText, PdfExtractError } from '../../../frontend/src/lib/pdf.js';
+import { ErrorAlert, Icon, OkAlert } from '../../../frontend/src/components/ui.js';
 import {
   getActiveTab,
   getSavedAnalysis,
@@ -48,6 +50,9 @@ export const VacancyView: React.FC = () => {
   const [trackedId, setTrackedId] = useState<string | undefined>();
   /** The user just clicked the site's apply button: ask about the tracker. */
   const [applyAsked, setApplyAsked] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+  const pdfInput = useRef<HTMLInputElement>(null);
   const readId = useRef(0); // ignores results of older reads when the user switches tabs quickly
   const pageRef = useRef<PageState>(page);
   pageRef.current = page;
@@ -169,6 +174,46 @@ export const VacancyView: React.FC = () => {
     }
   };
 
+  /** A CV PDF chosen in the panel: extract the text locally, save it as a CV version, select it. */
+  const onPdfChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow choosing the same file again
+    if (!file) return;
+    setError(null);
+    setUploadNotice(null);
+    setUploading(true);
+    try {
+      const { text } = await extractPdfText(file);
+      if (text.length > LIMITS.CV_TEXT_MAX) {
+        setError(t('cvs.tooLong', { over: text.length - LIMITS.CV_TEXT_MAX, max: LIMITS.CV_TEXT_MAX }));
+        return;
+      }
+      const name = file.name.replace(/\.pdf$/i, '').trim().slice(0, LIMITS.CV_NAME_MAX) || 'CV';
+      const cv = await createCv({ name, text });
+      setCvs((list) => [cv, ...(list ?? []).filter((c) => c.id !== cv.id)]);
+      setCvId(cv.id);
+      setUploadNotice(t('ext.uploadedPdf', { name: cv.name }));
+    } catch (err) {
+      setError(err instanceof PdfExtractError ? t(`cvs.pdfErrors.${err.code}`) : apiErrorMessage(err, t));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const uploadButton = (
+    <>
+      <input ref={pdfInput} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => void onPdfChosen(e)} />
+      <button
+        type="button"
+        onClick={() => pdfInput.current?.click()}
+        disabled={uploading || running}
+        className="btn-secondary btn-sm min-h-[36px]"
+      >
+        <Icon.plus className="w-4 h-4" /> {uploading ? t('ext.uploadingPdf') : t('ext.uploadPdf')}
+      </button>
+    </>
+  );
+
   const analyse = async () => {
     if (page.status !== 'ready' || !cvId || running) return;
     setError(null);
@@ -246,17 +291,23 @@ export const VacancyView: React.FC = () => {
           ) : cvs.length === 0 ? (
             <div>
               <p className="mb-2.5 text-[15px] text-ink-soft">{t('ext.noCvs')}</p>
-              <button type="button" onClick={() => openUrl(siteLink('/app/cvs'))} className="btn-accent btn-sm">
-                <Icon.plus className="w-4 h-4" /> {t('ext.addCv')}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {uploadButton}
+                <button type="button" onClick={() => openUrl(siteLink('/app/cvs'))} className="link text-[14px]">
+                  {t('ext.addCv')}
+                </button>
+              </div>
+              <p className="hint">{t('ext.uploadHint')}</p>
             </div>
           ) : (
             <>
-              <select id="cv" value={cvId} onChange={(e) => setCvId(e.target.value)} disabled={running} className="field appearance-auto mb-3">
+              <select id="cv" value={cvId} onChange={(e) => setCvId(e.target.value)} disabled={running || uploading} className="field appearance-auto mb-2">
                 {cvs.map((cv) => (
                   <option key={cv.id} value={cv.id}>{cv.name}</option>
                 ))}
               </select>
+              <div className="mb-3">{uploadButton}</div>
+              {uploadNotice && <div className="mb-3"><OkAlert>{uploadNotice}</OkAlert></div>}
               <button type="button" onClick={() => void analyse()} disabled={running || !cvId} className="btn-primary w-full">
                 {running ? t('ext.analysing', { seconds }) : analysis ? t('ext.reanalyse') : t('ext.analyse')}
               </button>

@@ -145,6 +145,16 @@ Then in Chrome open `chrome://extensions`, turn on **Developer mode**, click **L
 
 Everything runs in `us-east-1`. Steps 1–3 are done once per account.
 
+> **Deploying from Windows (PowerShell):** run these first in the same terminal. `npx` hangs when CDK
+> passes the esbuild `--banner` through `cmd.exe`, and Git Bash would rewrite the SSM parameter name
+> into a Windows path:
+>
+> ```powershell
+> $env:npm_config_script_shell = 'C:\Program Files\Git\bin\bash.exe'
+> $env:MSYS_NO_PATHCONV = '1'
+> $env:ALERT_EMAIL = 'you@example.com'   # PowerShell drops the `--` in `npm run deploy -- --alert-email`
+> ```
+
 **1. Check that the AWS CLI is signed in to the right account**
 
 ```bash
