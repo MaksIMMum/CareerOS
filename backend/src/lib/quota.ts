@@ -8,7 +8,15 @@ type Client = Pick<DynamoDBDocumentClient, 'send'>;
 /** AI calls allowed per user per day (Kyiv calendar day). */
 /** `share` = the before/after re-score made when a result is shared (once per analysis). */
 /** `coverLetter` = a cover letter generated (or regenerated) from an analysis. */
-export const DAILY_LIMITS = { analysis: 10, interview: 5, share: 10, coverLetter: 10 } as const;
+/** `profile` = Djinni / LinkedIn profile text from a CV. `vacancyImport` = a vacancy read from a link (no AI). */
+export const DAILY_LIMITS = {
+  analysis: 10,
+  interview: 5,
+  share: 10,
+  coverLetter: 10,
+  profile: 10,
+  vacancyImport: 30,
+} as const;
 export type QuotaKind = keyof typeof DAILY_LIMITS;
 
 // Counter attribute on the QUOTA#<day> item for each kind.
@@ -17,6 +25,8 @@ const COUNTER: Record<QuotaKind, string> = {
   interview: 'interviews',
   share: 'shares',
   coverLetter: 'coverLetters',
+  profile: 'profiles',
+  vacancyImport: 'imports',
 };
 
 /** The quota day in Ukraine's time zone, so limits reset at local midnight. */
@@ -129,6 +139,14 @@ const MESSAGES: Record<QuotaKind, Record<Lang, (limit: number) => string>> = {
   coverLetter: {
     uk: (n) => `Ви створили ${n} супровідних листів сьогодні — це максимум. Ліміт оновиться опівночі за Києвом.`,
     en: (n) => `You have created ${n} cover letters today, which is the maximum. The limit resets at midnight Kyiv time.`,
+  },
+  profile: {
+    uk: (n) => `Ви створили ${n} текстів профілю сьогодні — це максимум. Ліміт оновиться опівночі за Києвом.`,
+    en: (n) => `You have created ${n} profile texts today, which is the maximum. The limit resets at midnight Kyiv time.`,
+  },
+  vacancyImport: {
+    uk: (n) => `Ви імпортували ${n} вакансій сьогодні — це максимум. Ліміт оновиться опівночі за Києвом.`,
+    en: (n) => `You have imported ${n} vacancies today, which is the maximum. The limit resets at midnight Kyiv time.`,
   },
 };
 

@@ -13,6 +13,7 @@ import { downloadCvPdf } from '../lib/download.js';
 import { LIMITS } from '../lib/limits.js';
 import { extractPdfText, PdfExtractError } from '../lib/pdf.js';
 import { ErrorAlert, Icon, OkAlert, PageHero } from '../components/ui.js';
+import { ProfileTextCard } from '../components/ProfileTextCard.js';
 
 type Editor = { id: string | null; name: string; text: string };
 
@@ -210,6 +211,7 @@ export const CvsPage: React.FC = () => {
 
         {/* Editor */}
         {editor ? (
+          <div className="flex flex-col gap-6 min-w-0">
           <form onSubmit={save} className="card shadow-lift space-y-5">
             <h2 className="font-display font-extrabold text-[21px]">
               {editor.id ? t('cvs.editorEditTitle') : t('cvs.editorNewTitle')}
@@ -273,6 +275,14 @@ export const CvsPage: React.FC = () => {
               </button>
             </div>
           </form>
+          {editor.id && (
+            <ProfileTextCard
+              key={editor.id}
+              cvId={editor.id}
+              cvUpdatedAt={cvs.find((c) => c.id === editor.id)?.updatedAt}
+            />
+          )}
+          </div>
         ) : (
           <div className="hidden lg:flex items-center justify-center rounded-3xl border-2 border-dashed border-line-dashed bg-white/60 p-10 text-[15px] text-ink-muted text-center">
             {busy === 'opening' ? t('cvs.loading') : cvs.length ? t('cvs.pickHint') : t('cvs.empty')}

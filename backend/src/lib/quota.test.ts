@@ -70,6 +70,8 @@ describe('refundQuota / getQuotaUsage', () => {
       interview: { used: 0, limit: 5 },
       share: { used: 0, limit: 10 },
       coverLetter: { used: 0, limit: 10 },
+      profile: { used: 0, limit: 10 },
+      vacancyImport: { used: 0, limit: 30 },
     });
   });
 });

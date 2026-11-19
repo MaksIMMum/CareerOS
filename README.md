@@ -25,6 +25,8 @@ Ukrainian (default) and English.
 | **Honest CV rewrite** | Your CV reordered and reworded for that vacancy. The AI may only rephrase facts that are already in your CV; anything new is flagged for you to check. |
 | **Cover letter** | A short cover letter for the vacancy in Ukrainian or English, written only from facts in your CV and checked the same way. Edit it, copy it or download it as PDF. |
 | **Skills to learn** | On the dashboard: the skills vacancies asked for most often across your analyses that your CV lacked (e.g. "Docker — 7 of 9"), with the ones you have since added marked. |
+| **Vacancy from a link** | Paste a Djinni or DOU vacancy link and the form fills itself in (Work.ua often blocks automatic reading — then paste the text). |
+| **Djinni / LinkedIn profile text** | On "My CVs": a headline, an "About" text and a skills list for your Djinni or LinkedIn profile, written only from that CV and checked the same way, with copy buttons. |
 | **CV as PDF** | Download any saved CV version as a clean black-and-white A4 PDF (works with Ukrainian text). |
 | **Share card** | A public before → after score card (no CV text) to share with friends. |
 | **Application tracker** | A board (Applied → Interview → Offer → Rejected) that remembers which CV version you sent, and shows which version gets more replies. |
@@ -191,7 +193,7 @@ CareerOS is built to cost **0 USD** for a student project:
 
 No NAT gateways, RDS or Secrets Manager are used. A 1 USD monthly budget sends an e-mail on any real spend.
 For that budget to count CareerOS resources, activate the `project` cost-allocation tag once in
-**Billing → Cost allocation tags**. Each user also has a daily AI limit (10 analyses, 5 interviews, 10 shares, 10 cover letters).
+**Billing → Cost allocation tags**. Each user also has a daily AI limit (10 analyses, 5 interviews, 10 shares, 10 cover letters, 10 profile texts, 30 vacancy imports).
 
 ## Destroy
 

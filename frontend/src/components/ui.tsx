@@ -18,6 +18,7 @@ export const Icon = {
   warn: (p: IconProps) => svg(<><path d="M12 3l10 18H2z" /><path d="M12 10v5M12 18v.5" /></>, p),
   info: (p: IconProps) => svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5M12 16.5v.5" /></>, p),
   upload: (p: IconProps) => svg(<path d="M12 16V4M7 9l5-5 5 5M5 20h14" />, p),
+  link: (p: IconProps) => svg(<><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" /></>, p),
   download: (p: IconProps) => svg(<path d="M12 4v12M7 11l5 5 5-5M5 20h14" />, p),
   search: (p: IconProps) => svg(<><circle cx="11" cy="11" r="7" /><path d="M16.5 16.5L21 21" /></>, p),
   columns: (p: IconProps) => svg(<><rect x="3" y="4" width="5" height="16" rx="1.5" /><rect x="10" y="4" width="5" height="11" rx="1.5" /><rect x="17" y="4" width="4" height="7" rx="1.5" /></>, p),
