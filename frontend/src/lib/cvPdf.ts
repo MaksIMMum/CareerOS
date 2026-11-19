@@ -100,7 +100,8 @@ const looksLikeName = (line: string) =>
   !isSectionTitle(line) &&
   line.length <= 50 && line.split(/\s+/).length <= 6 && !/[@:|]|https?:|www\.|\d{3}/i.test(line) && !BULLET_RE.test(line);
 
-export function parseCv(text: string): Block[] {
+/** `header: false` skips the name/contact detection (for texts that are not a CV, e.g. a vacancy). */
+export function parseCv(text: string, { header = true }: { header?: boolean } = {}): Block[] {
   const lines = sanitizeCvText(text)
     .split('\n')
     .map((l) => stripMarkdown(l).trimEnd());
@@ -110,7 +111,7 @@ export function parseCv(text: string): Block[] {
 
   // Header: name (even if ALL CAPS or "# Name") + up to 4 contact / title lines right after it.
   const first = lines[i]?.trim().replace(/^#+\s*/, '') ?? '';
-  if (first && looksLikeName(first)) {
+  if (header && first && looksLikeName(first)) {
     blocks.push({ kind: 'name', text: first });
     i++;
     let n = 0;
@@ -243,21 +244,59 @@ const SIZE = { name: 22, contact: 10, heading: 11, body: 10.5, footer: 8.5 };
 const LEADING = { name: 26, contact: 14, heading: 14, body: 14.5 };
 const BULLET_INDENT = 14;
 
+/** Shortens text with "…" so it fits `maxWidth` (used for the footer). */
+function clipToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+  const chars = Array.from(text);
+  while (chars.length && font.widthOfTextAtSize(`${chars.join('')}…`, size) > maxWidth) chars.pop();
+  return `${chars.join('').trimEnd()}…`;
+}
+
+const oneLine = (s: string) => sanitizeCvText(s).replace(/\n/g, ' ').trim();
+
 export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPdfFonts): Promise<Uint8Array> {
+  const versionName = oneLine(cv.name) || 'CV';
+  let blocks = parseCv(cv.text);
+  // No recognisable name at the top → use the version name as the header.
+  if (blocks[0]?.kind !== 'name') blocks = [{ kind: 'name', text: versionName }, ...blocks];
+  const personName = (blocks[0] as { text: string }).text;
+  return renderBlocks(blocks, { title: versionName, author: personName, footer: personName }, fonts);
+}
+
+/**
+ * A vacancy as a PDF: job title as the header, company and link under it, and the text
+ * styled like a CV body ("Requirements:" → heading, "•"/"-" lines → bullets).
+ */
+export async function buildVacancyPdf(
+  vacancy: { title: string; company?: string; url?: string; text: string },
+  fonts: CvPdfFonts,
+): Promise<Uint8Array> {
+  const title = oneLine(vacancy.title) || 'Vacancy';
+  const company = oneLine(vacancy.company ?? '');
+  const url = oneLine(vacancy.url ?? '');
+  const blocks: Block[] = [
+    { kind: 'name', text: title },
+    ...(company ? [{ kind: 'contact' as const, text: company }] : []),
+    ...(url ? [{ kind: 'contact' as const, text: url }] : []),
+    ...parseCv(vacancy.text, { header: false }),
+  ];
+  const footer = company ? `${title} · ${company}` : title;
+  return renderBlocks(blocks, { title: footer, author: company || undefined, footer }, fonts);
+}
+
+async function renderBlocks(
+  blocks: Block[],
+  meta: { title: string; author?: string; footer: string },
+  fonts: CvPdfFonts,
+): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   const regular = await doc.embedFont(fonts.regular, { subset: true });
   const bold = await doc.embedFont(fonts.bold, { subset: true });
   const fontOf = (b?: boolean): PDFFont => (b ? bold : regular);
 
-  const versionName = sanitizeCvText(cv.name).replace(/\n/g, ' ').trim() || 'CV';
-  let blocks = parseCv(cv.text);
-  // No recognisable name at the top → use the version name as the header.
-  if (blocks[0]?.kind !== 'name') blocks = [{ kind: 'name', text: versionName }, ...blocks];
-  const personName = (blocks[0] as { text: string }).text;
-
-  doc.setTitle(versionName);
-  doc.setAuthor(personName);
+  doc.setTitle(meta.title);
+  if (meta.author) doc.setAuthor(meta.author);
   doc.setCreator('CareerOS');
   doc.setProducer('CareerOS');
 
@@ -377,13 +416,13 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
     y -= 2;
   }
 
-  // Footer: person name + page numbers, only when there is more than one page.
+  // Footer: person name / vacancy title + page numbers, only when there is more than one page.
   const pages = doc.getPages();
   if (pages.length > 1) {
     pages.forEach((p, i) => {
       const num = `${i + 1} / ${pages.length}`;
       const w = regular.widthOfTextAtSize(num, SIZE.footer);
-      p.drawText(personName, { x: MARGIN_X, y: MARGIN_BOTTOM - 26, size: SIZE.footer, font: regular, color: BLACK });
+      p.drawText(clipToWidth(meta.footer, regular, SIZE.footer, PAGE.width - 2 * MARGIN_X - w - 24), { x: MARGIN_X, y: MARGIN_BOTTOM - 26, size: SIZE.footer, font: regular, color: BLACK });
       p.drawText(num, { x: PAGE.width - MARGIN_X - w, y: MARGIN_BOTTOM - 26, size: SIZE.footer, font: regular, color: BLACK });
     });
   }

@@ -166,6 +166,8 @@ describe('GET /analyses and /analyses/{id}', () => {
 
     const one = await call(h, ev('GET /analyses/{id}', { id: first.body.item.id }));
     expect(one.body.item.result.summary).toBe(goodResult.summary);
+    expect(one.body.item.vacancy).toEqual({ title: VACANCY.title, company: VACANCY.company, text: VACANCY.text });
+    expect(first.body.item.vacancy.text).toBe(VACANCY.text);
     expect((await call(h, ev('GET /analyses/{id}', { id: first.body.item.id, sub: 'user-b' }))).status).toBe(404);
   });
 });

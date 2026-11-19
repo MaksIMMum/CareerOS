@@ -48,6 +48,14 @@ export async function downloadCvPdf(cv: { name: string; text: string }): Promise
   downloadBlob(pdfFileName(cv.name), bytes as BlobPart, 'application/pdf');
 }
 
+/** Renders a vacancy to PDF and downloads it as "<title> — <company>.pdf". */
+export async function downloadVacancyPdf(vacancy: { title: string; company?: string; url?: string; text: string }): Promise<void> {
+  const { buildVacancyPdf, fonts } = await loadPdfKit();
+  const bytes = await buildVacancyPdf(vacancy, fonts);
+  const name = [vacancy.title, vacancy.company].filter(Boolean).join(' — ');
+  downloadBlob(pdfFileName(name, 'Vacancy'), bytes as BlobPart, 'application/pdf');
+}
+
 /** Renders a cover letter to PDF and downloads it as "<title>.pdf". */
 export async function downloadLetterPdf(letter: { title: string; text: string }): Promise<void> {
   const { buildLetterPdf, fonts } = await loadPdfKit();

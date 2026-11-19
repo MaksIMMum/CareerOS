@@ -234,6 +234,8 @@ export interface Analysis extends AnalysisSummary {
   flagged: Flagged;
   /** The latest cover letter written for this analysis, if any. */
   coverLetter?: CoverLetter;
+  /** The vacancy exactly as it was analysed. */
+  vacancy?: { title: string; company?: string; text: string };
 }
 
 export type CreateAnalysisInput = { cvId: string; lang: 'uk' | 'en' } & (
