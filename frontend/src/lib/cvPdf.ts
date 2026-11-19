@@ -236,14 +236,8 @@ const MARGIN_X = 54;
 const MARGIN_TOP = 52;
 const MARGIN_BOTTOM = 56;
 
-const COLOR = {
-  ink: rgb(0x11 / 255, 0x13 / 255, 0x18 / 255),
-  soft: rgb(0x3d / 255, 0x42 / 255, 0x50 / 255),
-  muted: rgb(0x5b / 255, 0x61 / 255, 0x70 / 255),
-  faint: rgb(0x8a / 255, 0x90 / 255, 0x9c / 255),
-  accent: rgb(0x23 / 255, 0x46 / 255, 0xd8 / 255),
-  line: rgb(0xd5 / 255, 0xd8 / 255, 0xdf / 255),
-};
+/** Black only: prints cleanly and looks neutral to recruiters and ATS. */
+const BLACK = rgb(0, 0, 0);
 
 const SIZE = { name: 22, contact: 10, heading: 11, body: 10.5, footer: 8.5 };
 const LEADING = { name: 26, contact: 14, heading: 14, body: 14.5 };
@@ -281,19 +275,19 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
     return false;
   };
 
-  const drawRuns = (runs: Run[], x: number, baseline: number, size: number, color = COLOR.ink) => {
+  const drawRuns = (runs: Run[], x: number, baseline: number, size: number) => {
     for (const r of runs) {
-      if (r.text) page.drawText(r.text, { x, y: baseline, size, font: fontOf(r.bold), color });
+      if (r.text) page.drawText(r.text, { x, y: baseline, size, font: fontOf(r.bold), color: BLACK });
       x += fontOf(r.bold).widthOfTextAtSize(r.text, size);
     }
   };
 
   /** Draws wrapped runs and advances `y`. */
-  const drawWrapped = (runs: Run[], x: number, width: number, size: number, leading: number, color = COLOR.ink) => {
+  const drawWrapped = (runs: Run[], x: number, width: number, size: number, leading: number) => {
     for (const line of wrapRuns(runs, width, measureAt(size))) {
       ensure(leading);
       y -= leading;
-      drawRuns(line, x, y + (leading - size) * 0.35, size, color);
+      drawRuns(line, x, y + (leading - size) * 0.35, size);
     }
   };
 
@@ -309,11 +303,11 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
         y -= 4;
         break;
       case 'contact':
-        drawWrapped([{ text: b.text }], MARGIN_X, contentWidth, SIZE.contact, LEADING.contact, COLOR.muted);
+        drawWrapped([{ text: b.text }], MARGIN_X, contentWidth, SIZE.contact, LEADING.contact);
         break;
       case 'heading': {
         if (!afterHeader) {
-          // Close the header with an accent rule before the first section / text.
+          // Close the header with a rule before the first section / text.
           finishHeader();
         }
         // Keep the heading together with at least two lines of what follows.
@@ -324,14 +318,14 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
           y: y + 3,
           size: SIZE.heading,
           font: bold,
-          color: COLOR.accent,
+          color: BLACK,
         });
         y -= 5;
         page.drawLine({
           start: { x: MARGIN_X, y },
           end: { x: PAGE.width - MARGIN_X, y },
-          thickness: 0.6,
-          color: COLOR.line,
+          thickness: 0.5,
+          color: BLACK,
         });
         y -= 5;
         break;
@@ -351,10 +345,10 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
               y: baseline,
               size: markerSize,
               font: b.marker === '•' ? bold : regular,
-              color: COLOR.accent,
+              color: BLACK,
             });
           }
-          drawRuns(line, MARGIN_X + BULLET_INDENT, baseline, SIZE.body, COLOR.soft);
+          drawRuns(line, MARGIN_X + BULLET_INDENT, baseline, SIZE.body);
         });
         if (next?.kind === 'bullet') y -= 1.5;
         break;
@@ -365,7 +359,7 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
         const intro = next?.kind === 'bullet' && b.runs.length === 1;
         if (intro) ensure(2 * bodyLineHeight);
         const runs = intro ? b.runs.map((r) => ({ ...r, bold: true })) : b.runs;
-        drawWrapped(runs, MARGIN_X, contentWidth, SIZE.body, bodyLineHeight, intro ? COLOR.ink : COLOR.soft);
+        drawWrapped(runs, MARGIN_X, contentWidth, SIZE.body, bodyLineHeight);
         if (intro) y -= 1.5;
         break;
       }
@@ -379,7 +373,7 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
   function finishHeader() {
     afterHeader = true;
     y -= 10;
-    page.drawRectangle({ x: MARGIN_X, y, width: contentWidth, height: 2, color: COLOR.accent });
+    page.drawRectangle({ x: MARGIN_X, y, width: contentWidth, height: 1, color: BLACK });
     y -= 2;
   }
 
@@ -389,8 +383,8 @@ export async function buildCvPdf(cv: { name: string; text: string }, fonts: CvPd
     pages.forEach((p, i) => {
       const num = `${i + 1} / ${pages.length}`;
       const w = regular.widthOfTextAtSize(num, SIZE.footer);
-      p.drawText(personName, { x: MARGIN_X, y: MARGIN_BOTTOM - 26, size: SIZE.footer, font: regular, color: COLOR.faint });
-      p.drawText(num, { x: PAGE.width - MARGIN_X - w, y: MARGIN_BOTTOM - 26, size: SIZE.footer, font: regular, color: COLOR.faint });
+      p.drawText(personName, { x: MARGIN_X, y: MARGIN_BOTTOM - 26, size: SIZE.footer, font: regular, color: BLACK });
+      p.drawText(num, { x: PAGE.width - MARGIN_X - w, y: MARGIN_BOTTOM - 26, size: SIZE.footer, font: regular, color: BLACK });
     });
   }
 
