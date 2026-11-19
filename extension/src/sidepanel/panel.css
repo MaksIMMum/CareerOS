@@ -1,0 +1,7 @@
+/* The side panel is narrow (~320–500 px): slightly tighter cards than on the website. */
+body {
+  min-width: 300px;
+}
+.card {
+  padding: 18px !important;
+}

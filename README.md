@@ -25,6 +25,7 @@ Ukrainian (default) and English.
 | **Honest CV rewrite** | Your CV reordered and reworded for that vacancy. The AI may only rephrase facts that are already in your CV; anything new is flagged for you to check. |
 | **Cover letter** | A short cover letter for the vacancy in Ukrainian or English, written only from facts in your CV and checked the same way. Edit it, copy it or download it as PDF. |
 | **Skills to learn** | On the dashboard: the skills vacancies asked for most often across your analyses that your CV lacked (e.g. "Docker — 7 of 9"), with the ones you have since added marked. |
+| **Chrome extension** | A side panel on Djinni / DOU / Work.ua vacancy pages: match the vacancy with your CV, get the improved CV as PDF and a cover letter without leaving the job site. See [Chrome extension](#chrome-extension). |
 | **Vacancy from a link or PDF** | Paste a Djinni or DOU vacancy link and the form fills itself in (Work.ua often blocks automatic reading — then paste the text), or upload the vacancy as a PDF (read in your browser). |
 | **Djinni / LinkedIn profile text** | On "My CVs": a headline, an "About" text and a skills list for your Djinni or LinkedIn profile, written only from that CV and checked the same way, with copy buttons. |
 | **CV and vacancy as PDF** | Download any saved CV version, or the vacancy you analysed, as a clean black-and-white A4 PDF (works with Ukrainian text). |
@@ -67,6 +68,7 @@ Data model, API routes, AI client and security notes: [`docs/technical-reference
 ├── backend/            Lambda handlers (TypeScript) + Vitest tests
 │   ├── src/handlers/   one file per API resource: cvs, analyses, interviews, applications, admin, …
 │   └── src/lib/        shared code: DynamoDB, AI client (llm.ts), prompts, quota, validation
+├── extension/          Chrome extension (Manifest V3 side panel) — reuses frontend/src code
 ├── frontend/           React app (Vite, Tailwind, i18next)
 │   ├── src/pages/      one file per page
 │   └── src/locales/    uk.ts + en.ts (all user-facing text)
@@ -101,6 +103,30 @@ locally against **your** deployed stack:
 1. Deploy once with `ALLOW_LOCAL_DEV=1` (see below) so the API accepts requests from `http://localhost:5173`.
 2. `cp frontend/.env.production frontend/.env.local` (the deploy writes the API and Cognito ids there).
 3. `npm run dev`.
+
+## Chrome extension
+
+The extension brings CareerOS to the moment you apply: open a vacancy on **Djinni, DOU or Work.ua**, click the
+CareerOS icon, and a side panel reads the vacancy from the page, matches it with one of your CVs, and gives you
+the score, missing skills, an honest CV rewrite (download as PDF) and a cover letter. It signs in with the same
+account as the website and uses the same API; CVs are managed on the website.
+
+**Build and install (unpacked):**
+
+```bash
+npm run deploy                 # once: writes frontend/.env.production (API, Cognito, site URL) used by the build
+npm run build:extension        # → extension/dist
+```
+
+Then in Chrome open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose
+`extension/dist`. Pin the CareerOS icon and click it on a vacancy page.
+
+- The extension id is fixed by the public `key` in `extension/public/manifest.json`
+  (`pnbpcifonoheffgdhbaocjkffeklejli`); the API allows CORS from `chrome-extension://<that id>` (`EXTENSION_ID` in
+  `infra/lib/careeros-stack.ts`). Change both together.
+- Permissions: `sidePanel`, `scripting`, `storage`, and the three job sites only. The page is read only while the
+  panel is open; nothing is sent until you press "Match my CV".
+- Publishing to the Chrome Web Store (later) needs a one-time $5 developer registration; the AWS side stays free.
 
 ## Deploy from a fresh AWS account
 
