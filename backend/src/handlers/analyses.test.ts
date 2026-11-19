@@ -61,7 +61,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-const quotaUsed = (kind: 'analyses' | 'shares') => db.get(`USER#${SUB}`, `QUOTA#${quotaDay()}`)?.[kind] ?? 0;
+const quotaUsed = (kind: 'analyses' | 'shares' | 'coverLetters') => db.get(`USER#${SUB}`, `QUOTA#${quotaDay()}`)?.[kind] ?? 0;
 const itemsWithSk = (prefix: string) => [...db.items.values()].filter((i) => String(i.SK).startsWith(prefix));
 
 describe('POST /analyses', () => {
@@ -204,5 +204,116 @@ describe('sharing', () => {
     const h = createAnalysesHandler({ client: db, tableName: 't', llm: fakeLlm(goodResult) });
     const { body } = await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
     expect((await call(h, ev('POST /analyses/{id}/share', { id: body.item.id, sub: 'user-b' }))).status).toBe(404);
+  });
+});
+
+describe('cover letters', () => {
+  const LETTER =
+    'Шановна команда Acme!\n\nХочу податися на позицію Junior Node.js Developer. Маю досвід з Node.js і TypeScript у навчальному проєкті CareerOS.\n\nЗ повагою.';
+
+  it('writes a letter from the saved CV with the no-invent rules, stores it and returns it with the analysis', async () => {
+    const llm = fakeLlm(goodResult, { letter: `  ${LETTER}  ` });
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm });
+    const { body } = await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+
+    const res = await call(h, ev('POST /analyses/{id}/cover-letter', { id: body.item.id, body: { lang: 'en' } }));
+    expect(res.status).toBe(201);
+    expect(res.body.coverLetter).toMatchObject({ letter: LETTER, lang: 'en', flagged: { skills: [], numbers: [] } });
+
+    const prompt = llm.generateJson.mock.calls[1]![0];
+    expect(prompt).toContain(NO_INVENT_RULE);
+    expect(prompt).toMatch(/Do NOT mention vacancy requirements the CV does not cover/);
+    expect(prompt).toContain('Write in English');
+    expect(prompt).toContain(CV_TEXT);
+    expect(prompt).toContain(VACANCY.text);
+    expect(quotaUsed('coverLetters')).toBe(1);
+    expect(itemsWithSk('').filter((i) => String(i.PK).startsWith('EVENT#')).map((e) => e.type)).toContain('COVER_LETTER');
+
+    const one = await call(h, ev('GET /analyses/{id}', { id: body.item.id }));
+    expect(one.body.item.coverLetter.letter).toBe(LETTER);
+    expect(one.body.item).not.toHaveProperty('missingSkills');
+  });
+
+  it('flags skills from the vacancy that the letter claims but the CV does not have', async () => {
+    const llm = fakeLlm(goodResult, { letter: `${LETTER} Також працюю з Docker вже 2 роки.` });
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm });
+    const { body } = await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+    const res = await call(h, ev('POST /analyses/{id}/cover-letter', { id: body.item.id }));
+    expect(res.body.coverLetter.flagged).toEqual({ skills: ['Docker'], numbers: ['2'] });
+  });
+
+  it('regenerating replaces the stored letter', async () => {
+    const llm = fakeLlm(goodResult, { letter: LETTER }, { letter: `${LETTER} Друга версія.` });
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm });
+    const { body } = await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+    await call(h, ev('POST /analyses/{id}/cover-letter', { id: body.item.id }));
+    await call(h, ev('POST /analyses/{id}/cover-letter', { id: body.item.id }));
+    expect(itemsWithSk('COVERLETTER#')).toHaveLength(1);
+    expect(itemsWithSk('COVERLETTER#')[0]!.letter).toContain('Друга версія');
+  });
+
+  it('refunds the quota when the AI fails, and enforces the daily limit', async () => {
+    const llm = fakeLlm(goodResult, new LlmError('http', 'Gemini HTTP 503', 503), { letter: LETTER });
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm });
+    const { body } = await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+    expect((await call(h, ev('POST /analyses/{id}/cover-letter', { id: body.item.id }))).status).toBe(502);
+    expect(quotaUsed('coverLetters')).toBe(0);
+    expect(itemsWithSk('COVERLETTER#')).toHaveLength(0);
+
+    db.get(`USER#${SUB}`, `QUOTA#${quotaDay()}`)!.coverLetters = 10;
+    const limited = await call(h, ev('POST /analyses/{id}/cover-letter', { id: body.item.id, lang: 'en' }));
+    expect(limited.status).toBe(429);
+    expect(limited.body).toMatchObject({ error: 'quota_exceeded', kind: 'coverLetter', limit: 10 });
+  });
+
+  it("cannot write a letter for another user's analysis (404, no quota used)", async () => {
+    const llm = fakeLlm(goodResult, { letter: LETTER });
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm });
+    const { body } = await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+    const res = await call(h, ev('POST /analyses/{id}/cover-letter', { id: body.item.id, sub: 'user-b' }));
+    expect(res.status).toBe(404);
+    expect(llm.generateJson).toHaveBeenCalledTimes(1);
+    expect(db.get('USER#user-b', `QUOTA#${quotaDay()}`)).toBeUndefined();
+  });
+});
+
+describe('GET /insights/skills', () => {
+  it('counts missing skills across analyses and marks the ones a CV now has', async () => {
+    const llm = fakeLlm(
+      goodResult,
+      { ...goodResult, missingSkills: [{ skill: 'Docker', advice: 'Курс.' }, { skill: 'Kubernetes', advice: 'Курс.' }] },
+    );
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm });
+    await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+    await new Promise((r) => setTimeout(r, 2));
+    await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: { ...VACANCY, title: 'DevOps intern' } } }));
+    db.get(`USER#${SUB}`, `CV#${CV_ID}`)!.text = `${CV_TEXT} Docker.`;
+
+    const res = await call(h, ev('GET /insights/skills'));
+    expect(res.status).toBe(200);
+    expect(res.body.analyses).toBe(2);
+    expect(res.body.skills.map((s: any) => [s.skill, s.count, s.inCvs])).toEqual([
+      ['Docker', 2, ['Backend CV']],
+      ['Kubernetes', 1, []],
+      ['PostgreSQL', 1, []],
+    ]);
+    expect(res.body.skills[0].vacancies.map((v: any) => v.title)).toEqual(['DevOps intern', 'Junior Node.js Developer']);
+  });
+
+  it('fills in missing skills of older analyses once from the detail item', async () => {
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm: fakeLlm(goodResult) });
+    const { body } = await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+    delete db.get(`USER#${SUB}`, `ANALYSIS#${body.item.id}`)!.missingSkills; // as saved before this feature
+
+    const res = await call(h, ev('GET /insights/skills'));
+    expect(res.body.skills.map((s: any) => s.skill)).toEqual(['Docker', 'PostgreSQL']);
+    expect(db.get(`USER#${SUB}`, `ANALYSIS#${body.item.id}`)!.missingSkills).toEqual(['Docker', 'PostgreSQL']);
+  });
+
+  it('is empty for a new user and only sees the caller\'s data', async () => {
+    const h = createAnalysesHandler({ client: db, tableName: 't', llm: fakeLlm(goodResult) });
+    await call(h, ev('POST /analyses', { body: { cvId: CV_ID, vacancy: VACANCY } }));
+    const res = await call(h, ev('GET /insights/skills', { sub: 'user-b' }));
+    expect(res.body).toEqual({ analyses: 0, skills: [] });
   });
 });

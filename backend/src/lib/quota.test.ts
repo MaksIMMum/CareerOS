@@ -69,6 +69,7 @@ describe('refundQuota / getQuotaUsage', () => {
       analysis: { used: 4, limit: 10 },
       interview: { used: 0, limit: 5 },
       share: { used: 0, limit: 10 },
+      coverLetter: { used: 0, limit: 10 },
     });
   });
 });

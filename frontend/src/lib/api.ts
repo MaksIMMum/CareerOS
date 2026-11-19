@@ -176,10 +176,25 @@ export interface AnalysisSummary {
   shareScores?: { before: number; after: number };
 }
 
+export interface Flagged {
+  skills: string[];
+  numbers: string[];
+}
+
+export interface CoverLetter {
+  letter: string;
+  lang: 'uk' | 'en';
+  /** Terms in the letter that are not in the CV (same post-check as the improved CV). */
+  flagged: Flagged;
+  createdAt: string;
+}
+
 export interface Analysis extends AnalysisSummary {
   result: AnalysisResult;
   /** Terms in the rewrite that are not in the original CV (post-check), never silently trusted. */
-  flagged: { skills: string[]; numbers: string[] };
+  flagged: Flagged;
+  /** The latest cover letter written for this analysis, if any. */
+  coverLetter?: CoverLetter;
 }
 
 export type CreateAnalysisInput = { cvId: string; lang: 'uk' | 'en' } & (
@@ -200,6 +215,31 @@ export const shareAnalysis = (id: string) =>
     `/analyses/${id}/share`,
     { method: 'POST' },
   );
+
+/** Writes (or rewrites) the cover letter for an analysis. */
+export const createCoverLetter = (analysisId: string, lang: 'uk' | 'en') =>
+  apiRequest<{ coverLetter: CoverLetter }>(`/analyses/${analysisId}/cover-letter`, {
+    method: 'POST',
+    body: JSON.stringify({ lang }),
+  }).then((r) => r.coverLetter);
+
+// ------------------------------------------------------------------ Insights
+
+export interface SkillGap {
+  skill: string;
+  /** In how many analyses the skill was missing. */
+  count: number;
+  vacancies: { analysisId: string; title: string; company: string }[];
+  /** Current CVs that now mention the skill. */
+  inCvs: string[];
+}
+
+export interface SkillGapReport {
+  analyses: number;
+  skills: SkillGap[];
+}
+
+export const getSkillInsights = () => apiRequest<SkillGapReport>('/insights/skills');
 
 export interface PublicShare {
   jobTitle: string;

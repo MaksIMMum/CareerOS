@@ -11,9 +11,12 @@ import { z } from 'zod';
 import {
   analysisResultSchema,
   buildAnalysisPrompt,
+  buildCoverLetterPrompt,
   buildRescorePrompt,
+  checkCoverLetter,
   checkResult,
   clampScore,
+  coverLetterSchema,
   rescoreSchema,
   type AnalysisResult,
   type VacancyForPrompt,
@@ -43,6 +46,7 @@ import {
 } from '../lib/quota.js';
 import { cvConfig, vacancyConfig } from '../lib/repos.js';
 import type { UnsupportedTerms } from '../lib/skillCheck.js';
+import { aggregateSkillGaps, type AnalysisSkills } from '../lib/skillGaps.js';
 import { vacancyInputSchema, type CvInput, type VacancyInput } from '../lib/validation.js';
 
 type Client = Pick<DynamoDBDocumentClient, 'send'>;
@@ -53,6 +57,7 @@ type Client = Pick<DynamoDBDocumentClient, 'send'>;
  *  - ANALYSISDETAIL#<uuidv7>  { data: brotli(JSON) } with the full result + CV/vacancy snapshot.
  *    Compressed because DynamoDB bills per KB and we only have 5 WCU/RCU. Its prefix does not
  *    start with "ANALYSIS#", so list queries never read these big items.
+ *  - COVERLETTER#<uuidv7>     the latest cover letter generated for that analysis
  * Public share: PK=SHARE#<shareId>, SK=SHARE { jobTitle, scoreBefore, scoreAfter } — no CV text.
  */
 export interface AnalysisSummary {
@@ -68,6 +73,15 @@ export interface AnalysisSummary {
   createdAt: string;
   shareId?: string;
   shareScores?: { before: number; after: number };
+  /** Names of the missing skills, kept on the summary for the skill-gap report (not listed). */
+  missingSkills?: string[];
+}
+
+export interface CoverLetter {
+  letter: string;
+  lang: Lang;
+  flagged: UnsupportedTerms;
+  createdAt: string;
 }
 
 interface AnalysisDetail {
@@ -88,6 +102,11 @@ const createSchema = z
   .refine((b) => Boolean(b.vacancyId) !== Boolean(b.vacancy), {
     message: 'Provide exactly one of vacancyId or vacancy',
   });
+
+const coverLetterBodySchema = z.object({ lang: z.enum(['uk', 'en']).optional() });
+
+/** The skill-gap report looks at this many most recent analyses. */
+const INSIGHT_ANALYSES = 50;
 
 const SUMMARY_ATTRS = [
   'id', 'cvId', 'cvName', 'vacancyId', 'vacancyTitle', 'company', 'lang', 'matchScore',
@@ -193,6 +212,7 @@ export function createAnalysesHandler({
       matchScore: result.matchScore,
       flaggedCount: flagged.skills.length + flagged.numbers.length,
       createdAt: new Date().toISOString(),
+      missingSkills: result.missingSkills.map((m) => m.skill),
     };
     const detail: AnalysisDetail = {
       result,
@@ -215,7 +235,8 @@ export function createAnalysesHandler({
       tableName,
     );
 
-    return json(201, { item: { ...summary, result, flagged } });
+    const { missingSkills: _ms, ...publicSummary } = summary;
+    return json(201, { item: { ...publicSummary, result, flagged } });
   }
 
   async function list(sub: string) {
@@ -234,9 +255,128 @@ export function createAnalysesHandler({
     return json(200, { items: (res.Items ?? []).map(strip) });
   }
 
+  async function getCoverLetter(sub: string, id: string): Promise<CoverLetter | undefined> {
+    const res = await client.send(
+      new GetCommand({ TableName: tableName, Key: { PK: pk(sub), SK: `COVERLETTER#${id}` } }),
+    );
+    if (!res.Item) return undefined;
+    const { letter, lang, flagged, createdAt } = res.Item as unknown as CoverLetter;
+    return { letter, lang, flagged, createdAt };
+  }
+
   async function get(sub: string, id: string) {
-    const [summary, detail] = await Promise.all([getSummary(sub, id), getDetail(sub, id)]);
-    return json(200, { item: { ...summary, result: detail.result, flagged: detail.flagged } });
+    const [summary, detail, coverLetter] = await Promise.all([
+      getSummary(sub, id),
+      getDetail(sub, id),
+      getCoverLetter(sub, id),
+    ]);
+    const { missingSkills: _ms, ...publicSummary } = summary;
+    return json(200, {
+      item: { ...publicSummary, result: detail.result, flagged: detail.flagged, ...(coverLetter ? { coverLetter } : {}) },
+    });
+  }
+
+  /** Writes (or rewrites) the cover letter for an analysis. Uses only the CV saved with it. */
+  async function createCoverLetter(event: APIGatewayProxyEventV2, sub: string, id: string) {
+    const body = parseJsonBody(event, coverLetterBodySchema);
+    const lang: Lang = body.lang ?? requestLang(event);
+    const detail = await getDetail(sub, id); // 404 for a foreign / unknown id, before any quota
+
+    const started = Date.now();
+    const raw = await withQuota(sub, 'coverLetter', () =>
+      getLlm().generateJson(
+        buildCoverLetterPrompt(detail.cvText, detail.vacancy, detail.result.matchedSkills, lang),
+        coverLetterSchema,
+      ),
+    );
+    const letter = raw.letter.trim();
+    const coverLetter: CoverLetter = {
+      letter,
+      lang,
+      flagged: checkCoverLetter(detail.cvText, letter, detail.result),
+      createdAt: new Date().toISOString(),
+    };
+    await client.send(
+      new PutCommand({ TableName: tableName, Item: { PK: pk(sub), SK: `COVERLETTER#${id}`, ...coverLetter } }),
+    );
+    await logEvent(
+      sub,
+      'COVER_LETTER',
+      {
+        analysisId: id,
+        lang,
+        flaggedCount: coverLetter.flagged.skills.length + coverLetter.flagged.numbers.length,
+        durationMs: Date.now() - started,
+      },
+      client,
+      tableName,
+    );
+    return json(201, { coverLetter });
+  }
+
+  /**
+   * Skill gaps across the latest analyses. Analyses saved before `missingSkills` was kept on the
+   * summary are filled in once from their detail item, so later reports stay one query.
+   */
+  async function skillInsights(sub: string) {
+    const res = await client.send(
+      new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': pk(sub), ':sk': 'ANALYSIS#' },
+        ExpressionAttributeNames: {
+          '#id': 'id', '#t': 'vacancyTitle', '#c': 'company', '#at': 'createdAt', '#ms': 'missingSkills',
+        },
+        ProjectionExpression: '#id, #t, #c, #at, #ms',
+        ScanIndexForward: false,
+        Limit: INSIGHT_ANALYSES,
+      }),
+    );
+    const rows = (res.Items ?? []) as Partial<AnalysisSkills>[];
+
+    const analyses: AnalysisSkills[] = [];
+    for (const row of rows) {
+      let missingSkills = row.missingSkills;
+      if (!Array.isArray(missingSkills)) {
+        try {
+          missingSkills = (await getDetail(sub, row.id!)).result.missingSkills.map((m) => m.skill);
+          await client.send(
+            new UpdateCommand({
+              TableName: tableName,
+              Key: { PK: pk(sub), SK: `ANALYSIS#${row.id}` },
+              UpdateExpression: 'SET #ms = :ms',
+              ConditionExpression: 'attribute_exists(PK)',
+              ExpressionAttributeNames: { '#ms': 'missingSkills' },
+              ExpressionAttributeValues: { ':ms': missingSkills },
+            }),
+          );
+        } catch (err) {
+          console.error('skill insights: backfill failed', { id: row.id, err });
+          missingSkills = missingSkills ?? [];
+        }
+      }
+      analyses.push({
+        id: row.id!,
+        vacancyTitle: row.vacancyTitle ?? '',
+        company: row.company ?? '',
+        createdAt: row.createdAt ?? '',
+        missingSkills,
+      });
+    }
+
+    // Current CV texts, to show which gaps the user has closed since.
+    const cvRes = await client.send(
+      new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': pk(sub), ':sk': 'CV#' },
+        ExpressionAttributeNames: { '#n': 'name', '#t': 'text' },
+        ProjectionExpression: '#n, #t',
+      }),
+    );
+    const cvTexts = (cvRes.Items ?? []).map((i) => ({ name: String(i.name ?? ''), text: String(i.text ?? '') }));
+
+    return json(200, aggregateSkillGaps(analyses, cvTexts));
   }
 
   async function share(sub: string, id: string) {
@@ -302,6 +442,10 @@ export function createAnalysesHandler({
           return await get(sub, parseId(event));
         case 'POST /analyses/{id}/share':
           return await share(sub, parseId(event));
+        case 'POST /analyses/{id}/cover-letter':
+          return await createCoverLetter(event, sub, parseId(event));
+        case 'GET /insights/skills':
+          return await skillInsights(sub);
         default:
           throw new HttpError(404, 'not_found');
       }

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.js';
 import { listAnalyses, listCvs, type AnalysisSummary, type CvSummary } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { ErrorAlert, Icon, PageHero, scoreColor } from '../components/ui.js';
+import { SkillGapsCard } from '../components/SkillGapsCard.js';
 
 export const DashboardPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -113,6 +114,8 @@ export const DashboardPage: React.FC = () => {
           </section>
         </div>
       </div>
+
+      <SkillGapsCard className="mt-6" />
 
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
         <section className="card flex flex-col">

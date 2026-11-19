@@ -7,7 +7,8 @@ type Client = Pick<DynamoDBDocumentClient, 'send'>;
 
 /** AI calls allowed per user per day (Kyiv calendar day). */
 /** `share` = the before/after re-score made when a result is shared (once per analysis). */
-export const DAILY_LIMITS = { analysis: 10, interview: 5, share: 10 } as const;
+/** `coverLetter` = a cover letter generated (or regenerated) from an analysis. */
+export const DAILY_LIMITS = { analysis: 10, interview: 5, share: 10, coverLetter: 10 } as const;
 export type QuotaKind = keyof typeof DAILY_LIMITS;
 
 // Counter attribute on the QUOTA#<day> item for each kind.
@@ -15,6 +16,7 @@ const COUNTER: Record<QuotaKind, string> = {
   analysis: 'analyses',
   interview: 'interviews',
   share: 'shares',
+  coverLetter: 'coverLetters',
 };
 
 /** The quota day in Ukraine's time zone, so limits reset at local midnight. */
@@ -105,11 +107,10 @@ export async function getQuotaUsage(
 ): Promise<Record<QuotaKind, { used: number; limit: number }>> {
   const res = await client.send(new GetCommand({ TableName: tableName, Key: quotaKey(sub, now) }));
   const item = res.Item ?? {};
-  return {
-    analysis: { used: Number(item[COUNTER.analysis] ?? 0), limit: DAILY_LIMITS.analysis },
-    interview: { used: Number(item[COUNTER.interview] ?? 0), limit: DAILY_LIMITS.interview },
-    share: { used: Number(item[COUNTER.share] ?? 0), limit: DAILY_LIMITS.share },
-  };
+  const kinds = Object.keys(DAILY_LIMITS) as QuotaKind[];
+  return Object.fromEntries(
+    kinds.map((k) => [k, { used: Number(item[COUNTER[k]] ?? 0), limit: DAILY_LIMITS[k] }]),
+  ) as Record<QuotaKind, { used: number; limit: number }>;
 }
 
 const MESSAGES: Record<QuotaKind, Record<Lang, (limit: number) => string>> = {
@@ -124,6 +125,10 @@ const MESSAGES: Record<QuotaKind, Record<Lang, (limit: number) => string>> = {
   share: {
     uk: (n) => `Ви поділилися ${n} результатами сьогодні — це максимум. Ліміт оновиться опівночі за Києвом.`,
     en: (n) => `You have shared ${n} results today, which is the maximum. The limit resets at midnight Kyiv time.`,
+  },
+  coverLetter: {
+    uk: (n) => `Ви створили ${n} супровідних листів сьогодні — це максимум. Ліміт оновиться опівночі за Києвом.`,
+    en: (n) => `You have created ${n} cover letters today, which is the maximum. The limit resets at midnight Kyiv time.`,
   },
 };
 

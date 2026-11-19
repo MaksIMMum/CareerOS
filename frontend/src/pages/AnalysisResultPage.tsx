@@ -10,6 +10,7 @@ import type { ApplicationPrefill } from '../components/ApplicationDialog.js';
 import type { InterviewPrefill } from './NewInterviewPage.js';
 import { DonationPrompt } from '../components/DonationPrompt.js';
 import { FeedbackCard } from '../components/FeedbackCard.js';
+import { CoverLetterCard } from '../components/CoverLetterCard.js';
 
 const Chips: React.FC<{ items: string[]; cls: string; empty: string }> = ({ items, cls, empty }) =>
   items.length === 0 ? (
@@ -346,6 +347,8 @@ export const AnalysisResultPage: React.FC = () => {
             </div>
           )}
         </section>
+
+        <CoverLetterCard key={analysis.id} analysis={analysis} className="mt-6" />
 
         <DonationPrompt className="mt-8" />
         <FeedbackCard context="analysis" onceKey="analysis" className="mt-6" />

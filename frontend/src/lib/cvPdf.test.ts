@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { buildCvPdf, labelRuns, parseCv, sanitizeCvText, wrapLine, wrapRuns } from './cvPdf.js';
+import { buildCvPdf, buildLetterPdf, labelRuns, parseCv, sanitizeCvText, wrapLine, wrapRuns } from './cvPdf.js';
 
 const font = (file: string) => new Uint8Array(readFileSync(fileURLToPath(new URL(`../assets/fonts/${file}`, import.meta.url))));
 const fonts = { regular: font('NotoSans-Regular.ttf'), bold: font('NotoSans-Bold.ttf') };
@@ -135,5 +135,17 @@ describe('buildCvPdf', () => {
     const { text } = await readPdf(await buildCvPdf({ name: 'General CV', text: 'Skills:\nGit, Docker' }, fonts));
     expect(text).toContain('General CV');
     expect(text).toContain('SKILLS');
+  });
+});
+
+describe('buildLetterPdf', () => {
+  it('renders the letter paragraphs as-is (no CV header or headings)', async () => {
+    const text = 'Шановна команда Acme!\n\n\nХочу податися на позицію Junior Node.js Developer.\n\nЗ повагою,\nОлена';
+    const { numPages, text: out, title } = await readPdf(await buildLetterPdf({ title: 'Лист — Acme', text }, fonts));
+    expect(numPages).toBe(1);
+    expect(title).toBe('Лист — Acme');
+    expect(out).toContain('Шановна команда Acme!');
+    expect(out).toContain('З повагою,');
+    expect(out).not.toContain('ШАНОВНА'); // not turned into a heading
   });
 });
