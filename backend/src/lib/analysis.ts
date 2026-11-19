@@ -38,6 +38,49 @@ export interface VacancyForPrompt {
   text: string;
 }
 
+/**
+ * Vacancies sometimes ask for age, gender and the like. Those are not skills: a candidate cannot
+ * "learn" them, and putting them in a CV is bad (and often discriminatory) advice.
+ */
+export const PERSONAL_TRAITS_RULE =
+  '"matchedSkills", "missingSkills" and "missingKeywords" may only contain skills, technologies, tools, languages, ' +
+  'qualifications or kinds of experience. Never list personal characteristics such as age, gender, marital status, ' +
+  'appearance or health, even if the vacancy asks for them; do not mention them in "summary" or "advice", and never ' +
+  'advise adding them to the CV.';
+
+// Unicode-aware "whole word" check (\b does not work for Cyrillic).
+const word = (w: string) => `(?<![\\p{L}])(?:${w})(?![\\p{L}])`;
+const PERSONAL_TRAIT_RE = new RegExp(
+  [
+    word('вік|віку|возраст|age|aged'),
+    word('стать|gender|sex|male|female'),
+    'чоловіч|жіноч|мужск|женск',
+    'сімейн|семейн|marital|married|одружен|заміжн',
+    'зовнішн|внешн|appearance',
+    word('здоров\\p{L}*|health'),
+    // "від 21 року", "от 18 лет", "21+ years old" — but not "від 1 року досвіду" (experience)
+    '(?:від|от|from)\\s*\\d+\\s*(?:рок|років|лет|год|years?)',
+    '\\d+\\s*\\+?\\s*(?:years? old)',
+  ].join('|'),
+  'iu',
+);
+const EXPERIENCE_RE = /досвід|опыт|стаж|experience/iu;
+
+/** Is this "skill" really a personal characteristic (age, gender, …)? */
+export function isPersonalTrait(term: string): boolean {
+  return PERSONAL_TRAIT_RE.test(term) && !EXPERIENCE_RE.test(term);
+}
+
+/** Safety net for PERSONAL_TRAITS_RULE: drops such items if the model still returns them. */
+export function dropPersonalTraits(r: AnalysisResult): AnalysisResult {
+  return {
+    ...r,
+    matchedSkills: r.matchedSkills.filter((s) => !isPersonalTrait(s)),
+    missingSkills: r.missingSkills.filter((m) => !isPersonalTrait(m.skill)),
+    missingKeywords: r.missingKeywords.filter((k) => !isPersonalTrait(k)),
+  };
+}
+
 const vacancyBlock = (v: VacancyForPrompt) =>
   `<vacancy>\nTitle: ${v.title}${v.company ? `\nCompany: ${v.company}` : ''}\n${v.text}\n</vacancy>`;
 
@@ -52,6 +95,7 @@ STRICT RULES — breaking them makes the answer useless:
 3. If the vacancy asks for something the CV does not have, list it in "missingSkills" with practical advice on how to learn it or how to show related experience honestly. Never insert it into the CV.
 4. "matchedSkills" may only contain skills that are explicitly written in the CV.
 5. Write "summary", every "why" and every "advice" in ${language}. Write "improvedCv" and every "rewritten" bullet in the same language as the original CV.
+6. ${PERSONAL_TRAITS_RULE}
 
 FIELDS:
 - matchScore: integer 0–100, how well the CV as it is now fits this vacancy's requirements. Be realistic and consistent: required skills weigh most.
@@ -96,6 +140,11 @@ export const coverLetterSchema = z.object({
   letter: z.string().min(50).max(5000),
 });
 
+const GREETING_UK =
+  'Ukrainian greeting: "Добрий день!" or "Добрий день, командо <Company>!" (vocative "командо"). ' +
+  'Never "Вітаю команді" or "Шановна команда" — they are grammatically wrong.';
+const GREETING_EN = 'English greeting: "Dear <Company> team," or "Hello <Company> team,".';
+
 export function buildCoverLetterPrompt(
   cvText: string,
   vacancy: VacancyForPrompt,
@@ -116,6 +165,8 @@ STYLE:
 - Write in ${language}.
 - 150–250 words, 3–4 short paragraphs, plain text only (no markdown, no bullet lists, no subject line).
 - Start with a greeting to the company's team${vacancy.company ? ` (the company is "${vacancy.company}")` : ''}. Never use placeholders such as [Name], [Company] or <...>.
+- ${lang === 'uk' ? GREETING_UK : GREETING_EN}
+- Write grammatically correct, natural ${language}; do not translate English phrases word for word.
 - Paragraph 1: the role being applied for and one sentence on why this candidate fits.
 - Paragraph 2–3: 2–3 concrete facts from the CV that match the vacancy best${matchedSkills.length ? ` (the CV already covers: ${matchedSkills.join(', ')})` : ''}.
 - Last paragraph: a polite, confident closing and readiness for an interview.
