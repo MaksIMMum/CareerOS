@@ -25,7 +25,7 @@ Ukrainian (default) and English.
 | **Honest CV rewrite** | Your CV reordered and reworded for that vacancy. The AI may only rephrase facts that are already in your CV; anything new is flagged for you to check. |
 | **Cover letter** | A short cover letter for the vacancy in Ukrainian or English, written only from facts in your CV and checked the same way. Edit it, copy it or download it as PDF. |
 | **Skills to learn** | On the dashboard: the skills vacancies asked for most often across your analyses that your CV lacked (e.g. "Docker — 7 of 9"), with the ones you have since added marked. |
-| **Vacancy from a link** | Paste a Djinni or DOU vacancy link and the form fills itself in (Work.ua often blocks automatic reading — then paste the text). |
+| **Vacancy from a link or PDF** | Paste a Djinni or DOU vacancy link and the form fills itself in (Work.ua often blocks automatic reading — then paste the text), or upload the vacancy as a PDF (read in your browser). |
 | **Djinni / LinkedIn profile text** | On "My CVs": a headline, an "About" text and a skills list for your Djinni or LinkedIn profile, written only from that CV and checked the same way, with copy buttons. |
 | **CV and vacancy as PDF** | Download any saved CV version, or the vacancy you analysed, as a clean black-and-white A4 PDF (works with Ukrainian text). |
 | **Share card** | A public before → after score card (no CV text) to share with friends. |

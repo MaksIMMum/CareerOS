@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,6 +12,8 @@ import {
 } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { downloadVacancyPdf } from '../lib/download.js';
+import { extractPdfText, PdfExtractError } from '../lib/pdf.js';
+import { guessVacancyTitle } from '../lib/vacancyPdf.js';
 import { LIMITS } from '../lib/limits.js';
 import { ErrorAlert, Icon, PageHero } from '../components/ui.js';
 
@@ -64,6 +66,9 @@ export const NewAnalysisPage: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [fromPdf, setFromPdf] = useState<number | null>(null); // pages read from an uploaded PDF
+  const pdfInput = useRef<HTMLInputElement>(null);
   const [running, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -98,11 +103,34 @@ export const NewAnalysisPage: React.FC = () => {
   /** Keep the link only if it is the one the fields were filled from. */
   const importedUrl = imported && url.trim() === imported ? imported : '';
 
+  const onVacancyPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow choosing the same file again
+    if (!file) return;
+    setError(null);
+    setImported(null);
+    setFromPdf(null);
+    setExtracting(true);
+    try {
+      const { text: pdfText, pages } = await extractPdfText(file);
+      setText(pdfText);
+      setTitle((current) => current.trim() || guessVacancyTitle(pdfText, file.name));
+      setUrl('');
+      setFromPdf(pages);
+    } catch (err) {
+      const code = err instanceof PdfExtractError ? err.code : 'unreadable';
+      setError(t(`vacancyImport.pdfErrors.${code}`));
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   const doImport = async () => {
     const link = url.trim();
     if (!link || importing) return;
     setError(null);
     setImported(null);
+    setFromPdf(null);
     setImporting(true);
     try {
       const v = await importVacancy(link);
@@ -286,8 +314,20 @@ export const NewAnalysisPage: React.FC = () => {
                         </button>
                       </div>
                       <p className="hint" aria-live="polite">
-                        {imported ? t('vacancyImport.done', { site: new URL(imported).hostname.replace(/^www\./, '') }) : t('vacancyImport.hint')}
+                        {imported
+                          ? t('vacancyImport.done', { site: new URL(imported).hostname.replace(/^www\./, '') })
+                          : fromPdf !== null
+                            ? t('vacancyImport.pdfDone', { pages: fromPdf })
+                            : t('vacancyImport.hint')}
                       </p>
+                      <div className="mt-3 pt-3 border-t border-line flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <span className="text-[13px] text-ink-muted">{t('vacancyImport.or')}</span>
+                        <input ref={pdfInput} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => void onVacancyPdf(e)} />
+                        <button type="button" onClick={() => pdfInput.current?.click()} disabled={extracting || importing} className="btn-secondary btn-sm min-h-[40px]">
+                          <Icon.upload className="w-4 h-4" /> {extracting ? t('vacancyImport.extracting') : t('vacancyImport.uploadPdf')}
+                        </button>
+                        <span className="text-[13px] text-ink-muted flex-[1_1_220px]">{t('vacancyImport.pdfHint')}</span>
+                      </div>
                     </div>
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 mb-4">
                       <div>
