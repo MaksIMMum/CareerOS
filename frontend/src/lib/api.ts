@@ -77,6 +77,26 @@ export async function apiRequest<T = unknown>(
   return (await res.json()) as T;
 }
 
+/** The server's codes for "Gemini was too slow / overloaded" — the daily limit is refunded for them. */
+const AI_RETRYABLE = new Set(['ai_timeout', 'ai_unavailable']);
+
+/**
+ * Runs an AI request and, if Gemini was too slow or busy, tries once more after a short pause.
+ * Safe because the backend refunds the daily limit and saves nothing when the AI call fails.
+ */
+export async function withAiRetry<T>(fn: () => Promise<T>, delayMs = 2500): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!(err instanceof ApiError) || !err.code || !AI_RETRYABLE.has(err.code)) throw err;
+    await new Promise((r) => setTimeout(r, delayMs));
+    return fn();
+  }
+}
+
+/** apiRequest for endpoints that call the AI (see withAiRetry). */
+const aiRequest = <T>(path: string, options: RequestInit = {}) => withAiRetry(() => apiRequest<T>(path, options));
+
 export interface UserProfile {
   PK: string;
   SK: string;
@@ -194,7 +214,7 @@ export interface ProfileText {
 export const getProfiles = (cvId: string) =>
   apiRequest<{ items: Partial<Record<ProfilePlatform, ProfileText>> }>(`/cvs/${cvId}/profile`).then((r) => r.items);
 export const createProfile = (cvId: string, platform: ProfilePlatform, lang: 'uk' | 'en') =>
-  apiRequest<{ profile: ProfileText }>(`/cvs/${cvId}/profile`, {
+  aiRequest<{ profile: ProfileText }>(`/cvs/${cvId}/profile`, {
     method: 'POST',
     body: JSON.stringify({ platform, lang }),
   }).then((r) => r.profile);
@@ -255,7 +275,7 @@ export type CreateAnalysisInput = { cvId: string; lang: 'uk' | 'en' } & (
 );
 
 export const createAnalysis = (data: CreateAnalysisInput) =>
-  apiRequest<{ item: Analysis }>('/analyses', { method: 'POST', body: JSON.stringify(data) }).then(
+  aiRequest<{ item: Analysis }>('/analyses', { method: 'POST', body: JSON.stringify(data) }).then(
     (r) => r.item,
   );
 export const listAnalyses = () =>
@@ -263,14 +283,14 @@ export const listAnalyses = () =>
 export const getAnalysis = (id: string) =>
   apiRequest<{ item: Analysis }>(`/analyses/${id}`).then((r) => r.item);
 export const shareAnalysis = (id: string) =>
-  apiRequest<{ shareId: string; scores: { before: number; after: number } }>(
+  aiRequest<{ shareId: string; scores: { before: number; after: number } }>(
     `/analyses/${id}/share`,
     { method: 'POST' },
   );
 
 /** Writes (or rewrites) the cover letter for an analysis. */
 export const createCoverLetter = (analysisId: string, lang: 'uk' | 'en') =>
-  apiRequest<{ coverLetter: CoverLetter }>(`/analyses/${analysisId}/cover-letter`, {
+  aiRequest<{ coverLetter: CoverLetter }>(`/analyses/${analysisId}/cover-letter`, {
     method: 'POST',
     body: JSON.stringify({ lang }),
   }).then((r) => r.coverLetter);
@@ -412,7 +432,7 @@ export interface Interview extends InterviewSummary {
 }
 
 export const createInterview = (data: { cvId: string; vacancyId: string; lang: 'uk' | 'en' }) =>
-  apiRequest<{ item: Interview }>('/interviews', { method: 'POST', body: JSON.stringify(data) }).then(
+  aiRequest<{ item: Interview }>('/interviews', { method: 'POST', body: JSON.stringify(data) }).then(
     (r) => r.item,
   );
 export const listInterviews = () =>
@@ -420,7 +440,7 @@ export const listInterviews = () =>
 export const getInterview = (id: string) =>
   apiRequest<{ item: Interview }>(`/interviews/${id}`).then((r) => r.item);
 export const answerInterview = (id: string, data: { index: number; answer: string; seconds?: number }) =>
-  apiRequest<{ item: Interview }>(`/interviews/${id}/answers`, {
+  aiRequest<{ item: Interview }>(`/interviews/${id}/answers`, {
     method: 'POST',
     body: JSON.stringify(data),
   }).then((r) => r.item);

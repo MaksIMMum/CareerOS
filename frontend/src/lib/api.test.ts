@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ApiError, apiRequest } from './api.js';
+import { ApiError, apiRequest, withAiRetry } from './api.js';
 
 describe('apiRequest helper', () => {
   beforeEach(() => {
@@ -37,5 +37,29 @@ describe('apiRequest helper', () => {
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).message).toBe('User profile not found');
     expect((err as ApiError).status).toBe(404);
+  });
+});
+
+describe('withAiRetry', () => {
+  it('retries once when the AI was too slow or busy', async () => {
+    for (const code of ['ai_timeout', 'ai_unavailable']) {
+      const fn = vi.fn().mockRejectedValueOnce(new ApiError(code, 504, code)).mockResolvedValueOnce('ok');
+      expect(await withAiRetry(fn, 0)).toBe('ok');
+      expect(fn).toHaveBeenCalledTimes(2);
+    }
+  });
+
+  it('gives up after the second failure with the original error', async () => {
+    const fn = vi.fn().mockRejectedValue(new ApiError('ai_timeout', 504, 'ai_timeout'));
+    await expect(withAiRetry(fn, 0)).rejects.toMatchObject({ code: 'ai_timeout' });
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry other errors (quota, validation, network)', async () => {
+    for (const err of [new ApiError('quota_exceeded', 429, 'quota_exceeded'), new ApiError('validation_error', 400, 'validation_error'), new TypeError('Failed to fetch')]) {
+      const fn = vi.fn().mockRejectedValue(err);
+      await expect(withAiRetry(fn, 0)).rejects.toBe(err);
+      expect(fn).toHaveBeenCalledTimes(1);
+    }
   });
 });

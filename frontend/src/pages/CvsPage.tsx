@@ -184,7 +184,7 @@ export const CvsPage: React.FC = () => {
                       <p className="font-display font-bold leading-snug truncate">{cv.name}</p>
                       <p className="text-[13px] text-ink-muted">{t('cvs.updated', { date: formatDate(cv.updatedAt) })}</p>
                     </div>
-                    <div className="flex gap-2 shrink-0">
+                    <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => void openCv(cv.id)} disabled={!!busy} className="btn-secondary btn-sm min-h-[40px]">
                         {t('cvs.edit')}
                       </button>
