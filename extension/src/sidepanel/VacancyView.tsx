@@ -3,10 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { createAnalysis, getAnalysis, listCvs, type Analysis, type CvSummary } from '../../../frontend/src/lib/api.js';
 import { apiErrorMessage } from '../../../frontend/src/lib/apiErrors.js';
 import { ErrorAlert, Icon } from '../../../frontend/src/components/ui.js';
-import { getActiveTab, getSavedAnalysisId, openUrl, readTab, saveAnalysisId } from '../chromeApi.js';
+import {
+  getActiveTab,
+  getSavedAnalysis,
+  getTracked,
+  insertLetterIntoTab,
+  isApplyMessage,
+  openUrl,
+  readTab,
+  saveAnalysis,
+  setScoreBadge,
+  takePendingApply,
+  vacancyKey,
+  watchApplies,
+} from '../chromeApi.js';
 import { isVacancyUrl, readVacancy, siteOf, vacancyFromSelection, type PageVacancy } from '../sites.js';
 import { ResultView } from './ResultView.js';
 import { siteLink } from './siteUrl.js';
+import { TrackerCard } from './TrackerCard.js';
 
 type PageState =
   | { status: 'reading' }
@@ -29,17 +43,36 @@ export const VacancyView: React.FC = () => {
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [selectionHint, setSelectionHint] = useState(false);
+  /** The CV version saved from the improved text here — the one the user will actually send. */
+  const [savedCv, setSavedCv] = useState<{ id: string; name: string } | null>(null);
+  const [trackedId, setTrackedId] = useState<string | undefined>();
+  /** The user just clicked the site's apply button: ask about the tracker. */
+  const [applyAsked, setApplyAsked] = useState(false);
   const readId = useRef(0); // ignores results of older reads when the user switches tabs quickly
+  const pageRef = useRef<PageState>(page);
+  pageRef.current = page;
 
-  /** Shows the last analysis made from this extension for the vacancy URL, if any. */
-  const loadSaved = async (url: string, id: number) => {
-    const savedId = await getSavedAnalysisId(url).catch(() => undefined);
-    if (!savedId) return;
+  /** Last analysis made from this extension for the vacancy URL, tracker state, pending apply. */
+  const loadSaved = async (url: string, tabId: number, id: number) => {
+    const [saved, tracked, pending] = await Promise.all([
+      getSavedAnalysis(url).catch(() => undefined),
+      getTracked(url).catch(() => undefined),
+      takePendingApply(url).catch(() => false),
+    ]);
+    if (readId.current !== id) return;
+    setTrackedId(tracked);
+    setApplyAsked(pending && !tracked);
+    void setScoreBadge(tabId, saved?.score).catch(() => undefined);
+    if (!saved) return;
     try {
-      const a = await getAnalysis(savedId);
+      const a = await getAnalysis(saved.id);
       if (readId.current === id) {
         setAnalysis(a);
         setFromCache(true);
+        if (!Number.isFinite(saved.score)) {
+          void saveAnalysis(url, { id: a.id, score: a.result.matchScore }).catch(() => undefined);
+          void setScoreBadge(tabId, a.result.matchScore).catch(() => undefined);
+        }
       }
     } catch {
       // deleted or another account: just start fresh
@@ -52,6 +85,9 @@ export const VacancyView: React.FC = () => {
     setSelectionHint(false);
     setAnalysis(null);
     setFromCache(false);
+    setSavedCv(null);
+    setTrackedId(undefined);
+    setApplyAsked(false);
     setPage({ status: 'reading' });
 
     const tab = await getActiveTab().catch(() => undefined);
@@ -65,7 +101,8 @@ export const VacancyView: React.FC = () => {
       const vacancy = readVacancy(html);
       if (!vacancy) return setPage({ status: 'failed', tabId: tab.id, url: tab.url });
       setPage({ status: 'ready', tabId: tab.id, vacancy });
-      await loadSaved(vacancy.url, id);
+      void watchApplies(tab.id).catch(() => undefined);
+      await loadSaved(vacancy.url, tab.id, id);
     } catch {
       if (readId.current === id) setPage({ status: 'failed', tabId: tab.id, url: tab.url });
     }
@@ -78,11 +115,22 @@ export const VacancyView: React.FC = () => {
     const onUpdated = (_id: number, info: { status?: string; url?: string }, tab: chrome.tabs.Tab) => {
       if (tab.active && (info.url || info.status === 'complete')) void readCurrentTab();
     };
+    // The page's apply watcher: an "apply" click on the vacancy shown here → ask about the tracker.
+    const onMessage = (message: unknown, sender: chrome.runtime.MessageSender) => {
+      const current = pageRef.current;
+      if (sender.id !== chrome.runtime.id || !isApplyMessage(message) || current.status !== 'ready') return;
+      if (vacancyKey(message.url) !== vacancyKey(current.vacancy.url)) return;
+      setApplyAsked(true);
+      // Handled here, so drop the copy the background keeps for a closed panel (it writes it at the same time).
+      window.setTimeout(() => void takePendingApply(message.url).catch(() => undefined), 800);
+    };
     chrome.tabs.onActivated.addListener(onActivated);
     chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.runtime.onMessage.addListener(onMessage);
     return () => {
       chrome.tabs.onActivated.removeListener(onActivated);
       chrome.tabs.onUpdated.removeListener(onUpdated);
+      chrome.runtime.onMessage.removeListener(onMessage);
     };
   }, [readCurrentTab]);
 
@@ -134,7 +182,9 @@ export const VacancyView: React.FC = () => {
       });
       setAnalysis(a);
       setFromCache(false);
-      await saveAnalysisId(url, a.id).catch(() => undefined);
+      setSavedCv(null);
+      await saveAnalysis(url, { id: a.id, score: a.result.matchScore }).catch(() => undefined);
+      void setScoreBadge(page.tabId, a.result.matchScore).catch(() => undefined);
     } catch (err) {
       setError(apiErrorMessage(err, t));
     } finally {
@@ -218,9 +268,31 @@ export const VacancyView: React.FC = () => {
 
       {error && <ErrorAlert>{error}</ErrorAlert>}
 
+      {/* Tracker: asked right after an "apply" click on the page, otherwise once there is a result. */}
+      {page.status === 'ready' && (applyAsked || trackedId || (analysis && !running)) && (
+        <TrackerCard
+          vacancy={page.vacancy}
+          cv={savedCv ?? (analysis ? { id: analysis.cvId, name: analysis.cvName } : cvs?.find((c) => c.id === cvId))}
+          vacancyId={analysis?.vacancyId ?? null}
+          trackedId={trackedId}
+          asked={applyAsked}
+          onTracked={(id) => {
+            setTrackedId(id);
+            setApplyAsked(false);
+          }}
+          onDismiss={() => setApplyAsked(false)}
+        />
+      )}
+
       {/* 3. Result */}
       {page.status === 'ready' && analysis && !running && (
-        <ResultView key={analysis.id} analysis={analysis} fromCache={fromCache} />
+        <ResultView
+          key={analysis.id}
+          analysis={analysis}
+          fromCache={fromCache}
+          onSavedCv={setSavedCv}
+          onInsertLetter={async (letter) => (await insertLetterIntoTab(page.tabId, letter)).status === 'inserted'}
+        />
       )}
     </>
   );

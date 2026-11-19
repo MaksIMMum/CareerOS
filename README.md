@@ -111,6 +111,14 @@ CareerOS icon, and a side panel reads the vacancy from the page, matches it with
 the score, missing skills, an honest CV rewrite (download as PDF) and a cover letter. It signs in with the same
 account as the website and uses the same API; CVs are managed on the website.
 
+On the vacancy page it also:
+
+- **puts the cover letter into the site's application form** ("Put into the application form": Djinni's
+  "Відгукнутися" form is opened and filled; elsewhere the field you clicked into, or the message textarea);
+- **offers to add the vacancy to your tracker** right after you click the site's apply button — with the CV you
+  sent (nothing is added without your click);
+- **shows your match score on the toolbar icon** on vacancies you have already analysed.
+
 **Build and install (unpacked):**
 
 ```bash

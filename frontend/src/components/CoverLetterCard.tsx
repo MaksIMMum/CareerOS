@@ -5,12 +5,20 @@ import { apiErrorMessage } from '../lib/apiErrors.js';
 import { downloadLetterPdf } from '../lib/download.js';
 import { activeFlags, highlight } from '../lib/flagged.js';
 import { LIMITS } from '../lib/limits.js';
-import { ErrorAlert, Icon } from './ui.js';
+import { ErrorAlert, Icon, OkAlert } from './ui.js';
 
 type Lang = 'uk' | 'en';
 
-/** Cover letter for one analysis: write / rewrite with AI, edit, copy, download as PDF. */
-export const CoverLetterCard: React.FC<{ analysis: Analysis; className?: string }> = ({ analysis, className = '' }) => {
+/**
+ * Cover letter for one analysis: write / rewrite with AI, edit, copy, download as PDF.
+ * `onInsert` (Chrome extension only) puts the letter into the job site's application form;
+ * it resolves to false when no suitable field was found.
+ */
+export const CoverLetterCard: React.FC<{
+  analysis: Analysis;
+  className?: string;
+  onInsert?: (text: string) => Promise<boolean>;
+}> = ({ analysis, className = '', onInsert }) => {
   const { t } = useTranslation();
   const [saved, setSaved] = useState<CoverLetter | undefined>(analysis.coverLetter);
   const [text, setText] = useState(analysis.coverLetter?.letter ?? '');
@@ -18,6 +26,7 @@ export const CoverLetterCard: React.FC<{ analysis: Analysis; className?: string 
   const [busy, setBusy] = useState<null | 'writing' | 'downloading'>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const flags = useMemo(() => (saved ? activeFlags(text, saved.flagged) : []), [text, saved]);
   const edited = saved !== undefined && text !== saved.letter;
@@ -44,6 +53,22 @@ export const CoverLetterCard: React.FC<{ analysis: Analysis; className?: string 
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setError(t('errors.generic'));
+    }
+  };
+
+  const insert = async () => {
+    if (!onInsert) return;
+    setError(null);
+    setNotice(null);
+    try {
+      if (await onInsert(text)) {
+        setNotice(t('coverLetter.inserted'));
+      } else {
+        await navigator.clipboard.writeText(text).catch(() => undefined);
+        setError(t('coverLetter.insertNotFound'));
+      }
+    } catch {
+      setError(t('coverLetter.insertNotFound'));
     }
   };
 
@@ -91,6 +116,7 @@ export const CoverLetterCard: React.FC<{ analysis: Analysis; className?: string 
       </div>
 
       {error && <ErrorAlert className="mb-4">{error}</ErrorAlert>}
+      {notice && <OkAlert className="mb-4">{notice}</OkAlert>}
 
       {!saved ? (
         <p className="text-[13px] text-ink-muted">{t('coverLetter.limitHint', { limit: LIMITS.COVER_LETTERS_PER_DAY })}</p>
@@ -131,6 +157,11 @@ export const CoverLetterCard: React.FC<{ analysis: Analysis; className?: string 
           )}
 
           <div className="mt-4 flex flex-wrap gap-2.5 justify-end">
+            {onInsert && (
+              <button type="button" onClick={() => void insert()} disabled={busy !== null || text.trim() === ''} className="btn-primary min-h-[44px]">
+                <Icon.arrowRight className="w-4 h-4" /> {t('coverLetter.insert')}
+              </button>
+            )}
             <button type="button" onClick={() => void copy()} disabled={text.trim() === ''} className="btn-outline">
               <Icon.copy className="w-4 h-4" /> {copied ? t('analysis.copied') : t('coverLetter.copy')}
             </button>

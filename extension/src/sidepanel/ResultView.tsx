@@ -22,7 +22,14 @@ const Chips: React.FC<{ items: string[]; cls: string; empty: string }> = ({ item
   );
 
 /** A compact analysis result for the side panel; the full page stays one click away. */
-export const ResultView: React.FC<{ analysis: Analysis; fromCache: boolean }> = ({ analysis, fromCache }) => {
+export const ResultView: React.FC<{
+  analysis: Analysis;
+  fromCache: boolean;
+  /** The improved CV was saved as a new version (that is the CV the user will send). */
+  onSavedCv: (cv: { id: string; name: string }) => void;
+  /** Puts the cover letter into the job site's application form; false = no field found. */
+  onInsertLetter: (letter: string) => Promise<boolean>;
+}> = ({ analysis, fromCache, onSavedCv, onInsertLetter }) => {
   const { t } = useTranslation();
   const r = analysis.result;
   const [improved, setImproved] = useState(r.improvedCv);
@@ -62,6 +69,7 @@ export const ResultView: React.FC<{ analysis: Analysis; fromCache: boolean }> = 
     try {
       const cv = await createCv({ name: cvName, text: improved.trim().slice(0, LIMITS.CV_TEXT_MAX) });
       setNotice(t('analysis.savedAsCv', { name: cv.name }));
+      onSavedCv({ id: cv.id, name: cv.name });
     } catch (err) {
       setError(apiErrorMessage(err, t));
     } finally {
@@ -138,7 +146,7 @@ export const ResultView: React.FC<{ analysis: Analysis; fromCache: boolean }> = 
         </div>
       </section>
 
-      <CoverLetterCard analysis={analysis} />
+      <CoverLetterCard analysis={analysis} onInsert={onInsertLetter} />
     </>
   );
 };
