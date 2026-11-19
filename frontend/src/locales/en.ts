@@ -559,6 +559,10 @@ export const en: Shape<typeof uk> = {
     showLess: 'Show less',
   },
   vacancyImport: {
+    downloadPdf: 'Download PDF',
+    downloadPdfHint: 'Save the vacancy as a PDF — handy if it gets closed on the site.',
+    downloadVacancy: 'Vacancy as PDF',
+    downloading: 'Preparing PDF…',
     label: 'Link to the vacancy',
     placeholder: 'https://djinni.co/jobs/… or jobs.dou.ua/…',
     button: 'Fill in',

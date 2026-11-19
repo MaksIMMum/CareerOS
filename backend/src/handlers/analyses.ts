@@ -236,7 +236,7 @@ export function createAnalysesHandler({
     );
 
     const { missingSkills: _ms, ...publicSummary } = summary;
-    return json(201, { item: { ...publicSummary, result, flagged } });
+    return json(201, { item: { ...publicSummary, result, flagged, vacancy: detail.vacancy } });
   }
 
   async function list(sub: string) {
@@ -272,7 +272,13 @@ export function createAnalysesHandler({
     ]);
     const { missingSkills: _ms, ...publicSummary } = summary;
     return json(200, {
-      item: { ...publicSummary, result: detail.result, flagged: detail.flagged, ...(coverLetter ? { coverLetter } : {}) },
+      item: {
+        ...publicSummary,
+        result: detail.result,
+        flagged: detail.flagged,
+        vacancy: detail.vacancy, // the vacancy text exactly as it was analysed
+        ...(coverLetter ? { coverLetter } : {}),
+      },
     });
   }
 

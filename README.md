@@ -27,7 +27,7 @@ Ukrainian (default) and English.
 | **Skills to learn** | On the dashboard: the skills vacancies asked for most often across your analyses that your CV lacked (e.g. "Docker — 7 of 9"), with the ones you have since added marked. |
 | **Vacancy from a link** | Paste a Djinni or DOU vacancy link and the form fills itself in (Work.ua often blocks automatic reading — then paste the text). |
 | **Djinni / LinkedIn profile text** | On "My CVs": a headline, an "About" text and a skills list for your Djinni or LinkedIn profile, written only from that CV and checked the same way, with copy buttons. |
-| **CV as PDF** | Download any saved CV version as a clean black-and-white A4 PDF (works with Ukrainian text). |
+| **CV and vacancy as PDF** | Download any saved CV version, or the vacancy you analysed, as a clean black-and-white A4 PDF (works with Ukrainian text). |
 | **Share card** | A public before → after score card (no CV text) to share with friends. |
 | **Application tracker** | A board (Applied → Interview → Offer → Rejected) that remembers which CV version you sent, and shows which version gets more replies. |
 | **Mock interview** | 6–8 HR, technical and behavioural questions built from the vacancy and your CV, a score and feedback for every answer, and a better example answer that never invents experience. |

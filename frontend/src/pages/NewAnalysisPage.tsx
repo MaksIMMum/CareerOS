@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   createAnalysis,
+  getVacancy,
   importVacancy,
   listCvs,
   listVacancies,
@@ -10,6 +11,7 @@ import {
   type VacancySummary,
 } from '../lib/api.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
+import { downloadVacancyPdf } from '../lib/download.js';
 import { LIMITS } from '../lib/limits.js';
 import { ErrorAlert, Icon, PageHero } from '../components/ui.js';
 
@@ -61,6 +63,7 @@ export const NewAnalysisPage: React.FC = () => {
   const [url, setUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [running, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +115,22 @@ export const NewAnalysisPage: React.FC = () => {
       setError(apiErrorMessage(err, t));
     } finally {
       setImporting(false);
+    }
+  };
+
+  const canDownload = usingSaved || (title.trim() !== '' && chars > 0);
+  const downloadPdf = async () => {
+    setError(null);
+    setDownloading(true);
+    try {
+      const v = usingSaved
+        ? await getVacancy(vacancyId)
+        : { title: title.trim(), company: company.trim(), url: importedUrl, text: text.trim() };
+      await downloadVacancyPdf(v);
+    } catch {
+      setError(t('cvs.downloadFailed'));
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -293,6 +312,15 @@ export const NewAnalysisPage: React.FC = () => {
                       </span>
                     </div>
                   </>
+                )}
+
+                {canDownload && (
+                  <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <button type="button" onClick={() => void downloadPdf()} disabled={downloading || running} className="btn-secondary btn-sm min-h-[40px]">
+                      <Icon.download className="w-4 h-4" /> {downloading ? t('vacancyImport.downloading') : t('vacancyImport.downloadPdf')}
+                    </button>
+                    <span className="text-[13px] text-ink-muted">{t('vacancyImport.downloadPdfHint')}</span>
+                  </div>
                 )}
 
                 <div className="flex flex-wrap gap-4 items-center justify-between mt-6 pt-6 border-t border-line">

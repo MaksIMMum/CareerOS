@@ -555,6 +555,10 @@ export const uk = {
     showLess: 'Згорнути',
   },
   vacancyImport: {
+    downloadPdf: 'Завантажити PDF',
+    downloadPdfHint: 'Збережи вакансію як PDF — знадобиться, якщо її закриють на сайті.',
+    downloadVacancy: 'Вакансія у PDF',
+    downloading: 'Готуємо PDF…',
     label: 'Посилання на вакансію',
     placeholder: 'https://djinni.co/jobs/… або jobs.dou.ua/…',
     button: 'Заповнити',

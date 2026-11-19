@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { buildCvPdf, buildLetterPdf, labelRuns, parseCv, sanitizeCvText, wrapLine, wrapRuns } from './cvPdf.js';
+import { buildCvPdf, buildLetterPdf, buildVacancyPdf, labelRuns, parseCv, sanitizeCvText, wrapLine, wrapRuns } from './cvPdf.js';
 
 const font = (file: string) => new Uint8Array(readFileSync(fileURLToPath(new URL(`../assets/fonts/${file}`, import.meta.url))));
 const fonts = { regular: font('NotoSans-Regular.ttf'), bold: font('NotoSans-Bold.ttf') };
@@ -147,5 +147,32 @@ describe('buildLetterPdf', () => {
     expect(out).toContain('Шановна команда Acme!');
     expect(out).toContain('З повагою,');
     expect(out).not.toContain('ШАНОВНА'); // not turned into a heading
+  });
+});
+
+describe('buildVacancyPdf', () => {
+  it('puts title, company and link in the header and styles the text like a CV body', async () => {
+    const bytes = await buildVacancyPdf(
+      {
+        title: 'Junior Node.js Developer',
+        company: 'Acme',
+        url: 'https://djinni.co/jobs/1/',
+        text: 'Ми шукаємо розробника.\n\nВимоги:\n• Node.js\n• SQL',
+      },
+      fonts,
+    );
+    const { numPages, text, title } = await readPdf(bytes);
+    expect(numPages).toBe(1);
+    expect(title).toBe('Junior Node.js Developer · Acme');
+    expect(text).toContain('Junior Node.js Developer');
+    expect(text).toContain('https://djinni.co/jobs/1/');
+    expect(text).toContain('ВИМОГИ');
+    expect(text).toContain('Ми шукаємо розробника.');
+  });
+});
+
+describe('parseCv without header detection', () => {
+  it('does not turn the first line into a name', () => {
+    expect(parseCv('Ми шукаємо розробника\nNode.js', { header: false }).map((b) => b.kind)).toEqual(['para', 'para']);
   });
 });

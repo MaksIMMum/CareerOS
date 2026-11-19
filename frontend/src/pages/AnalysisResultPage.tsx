@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createCv, getAnalysis, shareAnalysis, type Analysis } from '../lib/api.js';
+import { createCv, getAnalysis, getVacancy, shareAnalysis, type Analysis } from '../lib/api.js';
+import { downloadVacancyPdf } from '../lib/download.js';
 import { apiErrorMessage } from '../lib/apiErrors.js';
 import { activeFlags, highlight } from '../lib/flagged.js';
 import { LIMITS } from '../lib/limits.js';
@@ -35,7 +36,7 @@ export const AnalysisResultPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [copied, setCopied] = useState<null | 'cv' | 'link'>(null);
-  const [busy, setBusy] = useState<null | 'saving' | 'sharing'>(null);
+  const [busy, setBusy] = useState<null | 'saving' | 'sharing' | 'vacancyPdf'>(null);
   const [bullet, setBullet] = useState(0);
   const [share, setShare] = useState<{ shareId: string; scores: { before: number; after: number } } | null>(null);
   /** The improved CV saved as a new version here — that is the one the user will send. */
@@ -111,6 +112,22 @@ export const AnalysisResultPage: React.FC = () => {
     }
   };
 
+  const downloadVacancy = async () => {
+    setError(null);
+    setBusy('vacancyPdf');
+    try {
+      // The text exactly as analysed; the link comes from the saved vacancy if it still exists.
+      const vacancy = analysis.vacancy ?? (await getAnalysis(analysis.id)).vacancy;
+      if (!vacancy) throw new Error('no vacancy');
+      const url = analysis.vacancyId ? await getVacancy(analysis.vacancyId).then((v) => v.url).catch(() => '') : '';
+      await downloadVacancyPdf({ ...vacancy, company: vacancy.company ?? analysis.company, url });
+    } catch {
+      setError(t('cvs.downloadFailed'));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const addToTracker = () => {
     const prefill: ApplicationPrefill = {
       cvId: savedCvId ?? analysis.cvId,
@@ -178,6 +195,15 @@ export const AnalysisResultPage: React.FC = () => {
                 </button>
                 <button type="button" onClick={practise} disabled={busy !== null} className={`${onBlueBtn} min-h-[52px]`}>
                   <Icon.chat className="w-4 h-4" /> {t('analysis.practise')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void downloadVacancy()}
+                  disabled={busy !== null}
+                  title={t('vacancyImport.downloadPdfHint')}
+                  className={`${onBlueBtn} min-h-[52px]`}
+                >
+                  <Icon.download className="w-4 h-4" /> {busy === 'vacancyPdf' ? t('vacancyImport.downloading') : t('vacancyImport.downloadVacancy')}
                 </button>
               </div>
             </div>
