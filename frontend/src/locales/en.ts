@@ -569,6 +569,17 @@ export const en: Shape<typeof uk> = {
     importing: 'Reading…',
     hint: 'Djinni, DOU or Work.ua. We fill in the fields below — check them before running the analysis.',
     done: 'Filled in from {{site}}. Check the text below.',
+    or: 'or',
+    uploadPdf: 'Upload a PDF',
+    extracting: 'Reading PDF…',
+    pdfHint: 'A vacancy saved as PDF, up to 5 MB. It is read in your browser — the file is not uploaded.',
+    pdfDone: 'Text taken from the PDF ({{pages}} pages). Check the title and text below.',
+    pdfErrors: {
+      too_large: 'The file is too large. The maximum is 5 MB.',
+      not_pdf: 'This is not a PDF. Choose a .pdf file or paste the vacancy text.',
+      no_text: 'This PDF has no text (it looks like a scan). Paste the vacancy text instead.',
+      unreadable: 'Could not read this PDF. Try another file or paste the vacancy text.',
+    },
   },
   profile: {
     title: 'Profile text for job sites',
